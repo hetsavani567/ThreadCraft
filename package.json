@@ -1,0 +1,26 @@
+{
+  "name": "threadcraft",
+  "version": "1.0.0",
+  "description": "ThreadCraft - Retail Clothing Store Full-Stack Web Application",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix frontend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "build:frontend": "npm run build --prefix frontend",
+    "install:frontend": "npm install --prefix frontend",
+    "install:backend": "npm install --prefix backend",
+    "install:all": "npm install --prefix frontend && npm install --prefix backend"
+  },
+  "keywords": [
+    "threadcraft",
+    "clothing-store",
+    "react",
+    "vite",
+    "tailwindcss",
+    "express",
+    "mysql"
+  ],
+  "author": "",
+  "license": "ISC"
+}
