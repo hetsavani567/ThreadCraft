@@ -3,8 +3,9 @@ import { apiRequest, fetchProducts, fetchCategories } from "../services/api";
 import Navbar from "./Navbar.jsx";
 import ProductCard from "./ProductCard.jsx";
 import Footer from "./Footer.jsx";
+import EmployeePortal from "./EmployeePortal.jsx";
 
-function Dashboard() {
+function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(["All"]);
   const [search, setSearch] = useState("");
@@ -12,11 +13,26 @@ function Dashboard() {
   const [cart, setCart] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isEmployeePortalOpen, setIsEmployeePortalOpen] = useState(false);
+  const [staffDiscountActive, setStaffDiscountActive] = useState(false);
   const [apiStatus, setApiStatus] = useState({
     ok: false,
     message: "Connecting to MySQL database...",
     database: ""
   });
+
+  const isEmployee = currentUser?.role === "employee";
+
+  // Employee live stock update handler (purely client-side state)
+  function handleUpdateStock(productId, delta) {
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId
+          ? { ...p, total_stock: Math.max(0, (p.total_stock || 0) + delta) }
+          : p
+      )
+    );
+  }
 
   // Fetch products and categories from MySQL database
   const loadData = useCallback(async () => {
@@ -136,6 +152,9 @@ function Dashboard() {
     0
   );
 
+  const staffDiscount = isEmployee && staffDiscountActive ? Math.round(cartTotal * 0.2) : 0;
+  const finalCartTotal = Math.max(0, cartTotal - staffDiscount);
+
   const filteredProducts = products.filter((product) => {
     const searchLower = search.toLowerCase();
     const matchesSearch =
@@ -154,7 +173,13 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900">
-      <Navbar cartCount={cartCount} />
+      <Navbar
+        cartCount={cartCount}
+        currentUser={currentUser}
+        onNavigateToAuth={onNavigateToAuth}
+        onLogout={onLogout}
+        onOpenEmployeePortal={() => setIsEmployeePortalOpen(true)}
+      />
 
       <main>
         {/* Hero section */}
@@ -360,6 +385,8 @@ function Dashboard() {
                   key={product.id}
                   product={product}
                   onAddToCart={handleAddToCart}
+                  isEmployee={isEmployee}
+                  onAdjustStock={handleUpdateStock}
                 />
               ))}
             </div>
@@ -513,22 +540,117 @@ function Dashboard() {
                   <span className="font-semibold">₹{cartTotal.toLocaleString("en-IN")}</span>
                 </div>
 
+                {/* Staff Exclusive 20% Discount Row */}
+                {isEmployee && (
+                  <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                    <span className="text-amber-800 font-semibold flex items-center gap-1">
+                      <span>👔 Staff Discount (20%):</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setStaffDiscountActive(!staffDiscountActive)}
+                      className={`rounded-md px-2 py-0.5 text-[10px] font-bold transition ${
+                        staffDiscountActive
+                          ? "bg-emerald-600 text-white"
+                          : "border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                      }`}
+                    >
+                      {staffDiscountActive ? "-₹" + staffDiscount.toLocaleString("en-IN") + " (Active)" : "Apply 20%"}
+                    </button>
+                  </div>
+                )}
+
                 <div className="mt-4 border-t border-stone-200 pt-4">
                   <div className="flex justify-between gap-3 text-lg font-black">
                     <span>Total</span>
-                    <span>₹{cartTotal.toLocaleString("en-IN")}</span>
+                    <span className="text-stone-900">
+                      ₹{finalCartTotal.toLocaleString("en-IN")}
+                    </span>
                   </div>
-                  <p className="mt-2 text-xs text-stone-500">
+                  {staffDiscount > 0 && (
+                    <p className="mt-1 text-xs font-semibold text-emerald-700">
+                      You saved ₹{staffDiscount.toLocaleString("en-IN")} with Employee Staff Discount!
+                    </p>
+                  )}
+                  <p className="mt-1.5 text-xs text-stone-500">
                     Direct from MySQL retail database inventory.
                   </p>
                 </div>
 
+                {/* Customer / Staff Address Preview */}
+                {currentUser ? (
+                  <div className="mt-5 rounded-xl border border-stone-200 bg-stone-50 p-3.5 text-xs">
+                    <div className="flex items-center justify-between text-stone-500 font-bold uppercase tracking-wider mb-1">
+                      <span>{isEmployee ? "Staff Member Verification" : "Delivery Details"}</span>
+                      <button
+                        type="button"
+                        onClick={onNavigateToAuth}
+                        className="text-[10px] text-amber-700 hover:underline"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <p className="font-bold text-stone-900">
+                      {currentUser.name}{" "}
+                      {isEmployee && (
+                        <span className="text-amber-800 font-normal">
+                          ({currentUser.emp_role})
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-stone-600">{currentUser.mobile_no || currentUser.mobile}</p>
+                    <p className="mt-1 text-stone-600 leading-snug">
+                      {isEmployee
+                        ? `Assigned Branch: ${currentUser.branch_name} (Branch #${currentUser.branch_id})`
+                        : [
+                            currentUser.house_no,
+                            currentUser.street,
+                            currentUser.area,
+                            currentUser.city,
+                            currentUser.state,
+                            currentUser.pincode,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-xl border border-dashed border-amber-300 bg-amber-50/60 p-3 text-xs text-amber-900">
+                    <p className="font-semibold">Have a Customer Account?</p>
+                    <p className="mt-0.5 text-amber-800 text-[11px]">
+                      Sign in to save your address details and track orders.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={onNavigateToAuth}
+                      className="mt-2 font-bold text-amber-900 underline hover:text-stone-900"
+                    >
+                      Sign In / Register Customer →
+                    </button>
+                  </div>
+                )}
+
                 <button
                   type="button"
-                  onClick={() =>
-                    alert("Order placed successfully with MySQL database mock!")
-                  }
-                  className="mt-6 w-full rounded-full bg-stone-900 px-5 py-3 font-semibold text-white hover:bg-amber-700 transition"
+                  onClick={() => {
+                    const recipient = currentUser ? currentUser.name : "Valued Customer";
+                    const address = currentUser
+                      ? isEmployee
+                        ? `Staff Member Pickup at ${currentUser.branch_name}`
+                        : [
+                            currentUser.house_no,
+                            currentUser.street,
+                            currentUser.area,
+                            currentUser.city,
+                            currentUser.state,
+                            currentUser.pincode,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")
+                      : "Standard Address";
+                    alert(`Order confirmed for ${recipient}!\nDelivery: ${address}\nTotal Amount: ₹${finalCartTotal.toLocaleString("en-IN")}${staffDiscount > 0 ? " (Includes 20% Staff Discount)" : ""}`);
+                  }}
+                  className="mt-5 w-full rounded-full bg-stone-900 px-5 py-3 font-semibold text-white hover:bg-amber-700 transition"
                 >
                   Proceed to Checkout
                 </button>
@@ -545,6 +667,31 @@ function Dashboard() {
           )}
         </section>
       </main>
+
+      {/* Staff Exclusive Floating Portal Trigger (Visible only to employees) */}
+      {isEmployee && (
+        <button
+          type="button"
+          onClick={() => setIsEmployeePortalOpen(true)}
+          className="fixed bottom-6 right-6 z-30 flex items-center gap-2 rounded-full bg-amber-600 px-4 py-3 font-bold text-stone-950 shadow-xl border-2 border-amber-300 hover:bg-amber-500 hover:scale-105 active:scale-95 transition"
+        >
+          <span className="text-lg">⚙️</span>
+          <span className="text-xs uppercase tracking-wider">Staff Terminal</span>
+        </button>
+      )}
+
+      {/* Employee Portal Modal */}
+      {isEmployee && (
+        <EmployeePortal
+          isOpen={isEmployeePortalOpen}
+          onClose={() => setIsEmployeePortalOpen(false)}
+          employee={currentUser}
+          products={products}
+          onUpdateStock={handleUpdateStock}
+          onApplyStaffDiscount={(active) => setStaffDiscountActive(active)}
+          staffDiscountActive={staffDiscountActive}
+        />
+      )}
 
       {/* Database connection status badge */}
       <div className="border-t border-stone-200 bg-white/50 backdrop-blur-xs py-3">

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-function ProductCard({ product, onAddToCart }) {
+function ProductCard({ product, onAddToCart, isEmployee, onAdjustStock }) {
   const [imgError, setImgError] = useState(false);
   const variants = product.variants && product.variants.length > 0 ? product.variants : [];
   
@@ -83,7 +83,7 @@ function ProductCard({ product, onAddToCart }) {
             </div>
           )}
 
-          {/* Stock Tag if low */}
+          {/* Stock Tag */}
           {product.total_stock !== undefined && (
             <div className="absolute bottom-3 left-3">
               {product.total_stock <= 0 ? (
@@ -103,6 +103,27 @@ function ProductCard({ product, onAddToCart }) {
           )}
         </div>
 
+        {/* Exclusive Employee Bar (visible ONLY to authenticated employees) */}
+        {isEmployee && (
+          <div className="bg-amber-100/90 border-b border-amber-200 px-3 py-1.5 flex items-center justify-between text-[11px] text-amber-900">
+            <span className="font-bold flex items-center gap-1">
+              <span>🔒 Staff:</span> {product.total_stock} in stock
+            </span>
+            <div className="flex items-center gap-1">
+              {onAdjustStock && (
+                <button
+                  type="button"
+                  onClick={() => onAdjustStock(product.id, 5)}
+                  className="rounded bg-amber-800 px-2 py-0.5 font-bold text-[10px] text-white hover:bg-stone-900 transition"
+                  title="Quick Restock +5 units"
+                >
+                  +5 Stock
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Content Section */}
         <div className="p-4">
           <h3 className="text-lg font-bold text-stone-900 group-hover:text-amber-800 transition-colors">
@@ -113,7 +134,7 @@ function ProductCard({ product, onAddToCart }) {
             {product.description}
           </p>
 
-          {/* Variant Selector (if product has multiple variants) */}
+          {/* Variant Selector */}
           {variants.length > 0 && (
             <div className="mt-3">
               <label
