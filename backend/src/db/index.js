@@ -7,8 +7,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load .env from backend directory first, then root if needed
-dotenv.config({ path: path.resolve(__dirname, ".env") });
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+dotenv.config();
 
 const pool = mysql.createPool({
     host: process.env.DB_HOST || "localhost",
@@ -20,5 +21,15 @@ const pool = mysql.createPool({
     connectionLimit: 10,
     queueLimit: 0
 });
+
+export const testConnection = async () => {
+    try {
+        const connection = await pool.getConnection();
+        console.log("Database connected successfully");
+        connection.release();
+    } catch (error) {
+        console.warn("Database connection notice:", error.message);
+    }
+};
 
 export default pool;
