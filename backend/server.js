@@ -1,77 +1,37 @@
-
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import pool from "./config/db.js";
+import db from "./db.js";
+
 dotenv.config();
+
 const app = express();
-const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
 
-app.get("/api/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "Retail Clothing Store API is running",
-  });
+app.get("/", (req, res) => {
+    res.send("ThreadCraft backend is running");
 });
 
-app.get("/api/test-db", async (req, res) => {
-  try {
-    const [rows] = await pool.query("SELECT DATABASE() AS database_name");
+app.get("/products", async (req, res) => {
+    try {
+        const [products] = await db.query(
+            "SELECT * FROM product"
+        );
 
-    res.json({
-      success: true,
-      message: "MySQL connected successfully!",
-      database: rows[0].database_name,
-    });
-  } catch (error) {
-    console.error("Database connection error:", error.message);
+        res.json(products);
+    } catch (error) {
+        console.error("Database error:", error);
 
-    res.status(500).json({
-      success: false,
-      message: "Database connection failed",
-    });
-  }
+        res.status(500).json({
+            message: "Failed to fetch products"
+        });
+    }
 });
 
-
-app.get("/api/products", async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SELECT
-        p.product_id AS id,
-        p.product_name AS name,
-        p.base_price AS price,
-        p.product_description AS description,
-        c.category_type AS category,
-        b.brand_name AS brand
-      FROM product p
-      LEFT JOIN category c
-        ON p.category_id = c.category_id
-      LEFT JOIN brand b
-        ON p.brand_id = b.brand_id
-      ORDER BY p.product_id DESC
-    `);
-
-    res.json({
-      success: true,
-      count: rows.length,
-      products: rows,
-    });
-  } catch (error) {
-    console.error("Error fetching products:", error.message);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch products",
-    });
-  }
-});
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`Backend server running at http://localhost:${PORT}/api/products`);
+    console.log(`Server running at http://localhost:${PORT}`);
 });
-
-
