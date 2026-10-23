@@ -1,53 +1,133 @@
-import { useEffect, useState } from "react";
-import { apiRequest } from "../services/api";
+import { useEffect, useState, useCallback } from "react";
+import { apiRequest, fetchProducts, fetchCategories } from "../services/api";
 import Navbar from "./Navbar.jsx";
 import ProductCard from "./ProductCard.jsx";
 import Footer from "./Footer.jsx";
-import products from "../data/products.js";
+import EmployeePortal from "./EmployeePortal.jsx";
 
-const categories = ["All", "Men", "Women", "Accessories"];
-
-function Dashboard() {
+function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState(["All"]);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [cart, setCart] = useState([]);
-  const [apiStatus, setApiStatus] = useState("Checking backend...");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isEmployeePortalOpen, setIsEmployeePortalOpen] = useState(false);
+  const [staffDiscountActive, setStaffDiscountActive] = useState(false);
+  const [apiStatus, setApiStatus] = useState({
+    ok: false,
+    message: "Connecting to MySQL database...",
+    database: ""
+  });
 
-  useEffect(() => {
-    apiRequest("/health")
-      .then((data) => {
-        setApiStatus(data.message);
-      })
-      .catch((error) => {
-        setApiStatus(`Connection failed: ${error.message}`);
-      });
+  const isEmployee = currentUser?.role === "employee";
+
+  // Employee live stock update handler (purely client-side state)
+  function handleUpdateStock(productId, delta) {
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId
+          ? { ...p, total_stock: Math.max(0, (p.total_stock || 0) + delta) }
+          : p
+      )
+    );
+  }
+
+  // Fetch products and categories from MySQL database
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // 1. Health check & DB connection
+      try {
+        const health = await apiRequest("/health");
+        setApiStatus({
+          ok: true,
+          message: health.message,
+          database: health.database || "retail_db"
+        });
+      } catch (err) {
+        setApiStatus({
+          ok: false,
+          message: `Backend or MySQL not reachable: ${err.message}`,
+          database: ""
+        });
+      }
+
+      // 2. Fetch categories from MySQL
+      try {
+        const cats = await fetchCategories();
+        if (Array.isArray(cats) && cats.length > 0) {
+          const list = ["All", ...cats.map((c) => c.category_type)];
+          setCategories(Array.from(new Set(list)));
+        }
+      } catch (catErr) {
+        console.warn("Could not load categories endpoint:", catErr);
+      }
+
+      // 3. Fetch products from MySQL
+      const data = await fetchProducts();
+      const productList = Array.isArray(data) ? data : [];
+      setProducts(productList);
+
+      // Fallback: derive categories from products if category list was empty
+      if (productList.length > 0) {
+        setCategories((prev) => {
+          if (prev.length > 1) return prev;
+          const found = ["All", ...productList.map((p) => p.category).filter(Boolean)];
+          return Array.from(new Set(found));
+        });
+      }
+    } catch (err) {
+      console.error("Failed to load products from MySQL:", err);
+      setError(
+        err.message ||
+          "Could not connect to the backend API or MySQL database. Please verify backend is running on port 5000 and MySQL retail_db is active."
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  // Add a product or increase its quantity
-  function handleAddToCart(product) {
-    setCart((currentCart) => {
-      const existingProduct = currentCart.find(
-        (item) => item.id === product.id
-      );
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-      if (existingProduct) {
+  // Add a product or increase its quantity in cart
+  function handleAddToCart(product) {
+    const variantId = product.selectedVariant?.variant_id || "default";
+    const cartKey = `${product.id}-${variantId}`;
+
+    setCart((currentCart) => {
+      const existingItem = currentCart.find((item) => item.cartKey === cartKey);
+
+      if (existingItem) {
         return currentCart.map((item) =>
-          item.id === product.id
+          item.cartKey === cartKey
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
 
-      return [...currentCart, { ...product, quantity: 1 }];
+      return [
+        ...currentCart,
+        {
+          ...product,
+          cartKey,
+          quantity: 1,
+        },
+      ];
     });
   }
 
-  // Increase or decrease a product quantity
-  function changeQuantity(productId, amount) {
+  // Increase or decrease item quantity in cart
+  function changeQuantity(cartKey, amount) {
     setCart((currentCart) =>
       currentCart
         .map((item) =>
-          item.id === productId
+          item.cartKey === cartKey
             ? { ...item, quantity: item.quantity + amount }
             : item
         )
@@ -55,10 +135,10 @@ function Dashboard() {
     );
   }
 
-  // Remove a product completely
-  function removeFromCart(productId) {
+  // Remove an item from cart
+  function removeFromCart(cartKey) {
     setCart((currentCart) =>
-      currentCart.filter((item) => item.id !== productId)
+      currentCart.filter((item) => item.cartKey !== cartKey)
     );
   }
 
@@ -72,10 +152,17 @@ function Dashboard() {
     0
   );
 
+  const staffDiscount = isEmployee && staffDiscountActive ? Math.round(cartTotal * 0.2) : 0;
+  const finalCartTotal = Math.max(0, cartTotal - staffDiscount);
+
   const filteredProducts = products.filter((product) => {
+    const searchLower = search.toLowerCase();
     const matchesSearch =
-      product.name.toLowerCase().includes(search.toLowerCase()) ||
-      product.category.toLowerCase().includes(search.toLowerCase());
+      !search ||
+      product.name?.toLowerCase().includes(searchLower) ||
+      product.description?.toLowerCase().includes(searchLower) ||
+      product.category?.toLowerCase().includes(searchLower) ||
+      product.brand?.toLowerCase().includes(searchLower);
 
     const matchesCategory =
       selectedCategory === "All" ||
@@ -86,7 +173,13 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900">
-      <Navbar cartCount={cartCount} />
+      <Navbar
+        cartCount={cartCount}
+        currentUser={currentUser}
+        onNavigateToAuth={onNavigateToAuth}
+        onLogout={onLogout}
+        onOpenEmployeePortal={() => setIsEmployeePortalOpen(true)}
+      />
 
       <main>
         {/* Hero section */}
@@ -107,19 +200,27 @@ function Dashboard() {
             </h1>
 
             <p className="mt-5 max-w-lg leading-7 text-stone-600">
-              Explore clothing and accessories for every day.
-              Discover timeless essentials and fresh styles.
+              Explore authentic clothing and accessories directly from our MySQL retail inventory.
+              Discover timeless essentials, verified stock, and premier brands.
             </p>
 
-            <a
-              href="#products"
-              className="mt-7 inline-flex rounded-full bg-stone-900 px-7 py-3 font-semibold text-white hover:bg-amber-700"
-            >
-              Shop Collection
-            </a>
+            <div className="mt-7 flex flex-wrap items-center gap-4">
+              <a
+                href="#products"
+                className="inline-flex rounded-full bg-stone-900 px-7 py-3 font-semibold text-white shadow hover:bg-amber-700 transition"
+              >
+                Shop Collection
+              </a>
+              <a
+                href="#cart"
+                className="inline-flex rounded-full border border-stone-300 bg-white px-6 py-3 font-semibold text-stone-800 hover:border-stone-900 transition"
+              >
+                View Cart ({cartCount})
+              </a>
+            </div>
           </div>
 
-          <div className="overflow-hidden rounded-3xl bg-stone-200">
+          <div className="overflow-hidden rounded-3xl bg-stone-200 shadow-md">
             <img
               src="https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1200&q=85"
               alt="Clothing collection in a fashion store"
@@ -135,9 +236,14 @@ function Dashboard() {
         >
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-bold uppercase tracking-widest text-amber-700">
-                Our collection
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-bold uppercase tracking-widest text-amber-700">
+                  Our Collection
+                </p>
+                <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
+                  MySQL Database
+                </span>
+              </div>
               <h2 className="mt-2 text-3xl font-black sm:text-4xl">
                 Shop your style
               </h2>
@@ -151,28 +257,41 @@ function Dashboard() {
                 Search products
               </label>
 
-              <input
-                id="product-search"
-                type="search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search clothing..."
-                className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 outline-none focus:border-amber-700 focus:ring-2 focus:ring-amber-100"
-              />
+              <div className="relative">
+                <input
+                  id="product-search"
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search by name, brand, category..."
+                  className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 pr-10 outline-none focus:border-amber-700 focus:ring-2 focus:ring-amber-100 transition"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="absolute right-3 top-3 text-stone-400 hover:text-stone-600"
+                    aria-label="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          {/* Category Filter Pills */}
+          <div className="mt-8 flex flex-wrap gap-2.5">
             {categories.map((category) => (
               <button
                 key={category}
                 type="button"
                 onClick={() => setSelectedCategory(category)}
                 aria-pressed={selectedCategory === category}
-                className={`rounded-full px-5 py-2.5 text-sm font-semibold ${
+                className={`rounded-full px-5 py-2.5 text-sm font-semibold transition ${
                   selectedCategory === category
-                    ? "bg-stone-900 text-white"
-                    : "border border-stone-300 bg-white hover:border-stone-900"
+                    ? "bg-stone-900 text-white shadow-sm"
+                    : "border border-stone-300 bg-white text-stone-700 hover:border-stone-900"
                 }`}
               >
                 {category}
@@ -180,33 +299,110 @@ function Dashboard() {
             ))}
           </div>
 
-          <p className="mt-6 text-sm text-stone-600">
-            {filteredProducts.length} products found
-          </p>
+          {/* Count and refresh */}
+          <div className="mt-6 flex items-center justify-between">
+            <p className="text-sm text-stone-600">
+              {isLoading
+                ? "Loading products from database..."
+                : `${filteredProducts.length} ${
+                    filteredProducts.length === 1 ? "product" : "products"
+                  } found`}
+            </p>
 
-          {filteredProducts.length > 0 ? (
-            <div className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <button
+              type="button"
+              onClick={loadData}
+              disabled={isLoading}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-800 hover:text-amber-950 transition"
+            >
+              <svg
+                className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+                />
+              </svg>
+              Refresh Database
+            </button>
+          </div>
+
+          {/* Products List / Loading / Error states */}
+          {isLoading ? (
+            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {[1, 2, 3, 4].map((n) => (
+                <div
+                  key={n}
+                  className="animate-pulse rounded-2xl border border-stone-200 bg-white p-4 shadow-xs"
+                >
+                  <div className="aspect-4/5 rounded-xl bg-stone-200" />
+                  <div className="mt-4 h-4 w-1/3 rounded bg-stone-200" />
+                  <div className="mt-2 h-6 w-3/4 rounded bg-stone-200" />
+                  <div className="mt-2 h-4 w-full rounded bg-stone-200" />
+                  <div className="mt-4 flex justify-between">
+                    <div className="h-6 w-1/4 rounded bg-stone-200" />
+                    <div className="h-8 w-1/3 rounded-full bg-stone-200" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-red-900">
+              <svg
+                className="mx-auto h-12 w-12 text-red-500"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+                />
+              </svg>
+              <h3 className="mt-3 text-lg font-bold">Failed to load from MySQL</h3>
+              <p className="mt-1 text-sm text-red-700 max-w-md mx-auto">{error}</p>
+              <div className="mt-5 flex justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={loadData}
+                  className="rounded-full bg-red-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-red-800 transition"
+                >
+                  Retry Connection
+                </button>
+              </div>
+            </div>
+          ) : filteredProducts.length > 0 ? (
+            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filteredProducts.map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
                   onAddToCart={handleAddToCart}
+                  isEmployee={isEmployee}
+                  onAdjustStock={handleUpdateStock}
                 />
               ))}
             </div>
           ) : (
-            <div className="mt-8 rounded-2xl bg-white p-10 text-center">
+            <div className="mt-8 rounded-2xl bg-white p-10 text-center border border-stone-200">
               <h3 className="text-xl font-bold">No products found</h3>
               <p className="mt-2 text-stone-600">
-                Try another search or category.
+                Try another search term or select another category.
               </p>
               <button
                 type="button"
                 onClick={() => {
-                  setSearch("")
-                  setSelectedCategory("All")
+                  setSearch("");
+                  setSelectedCategory("All");
                 }}
-                className="mt-4 rounded-full bg-stone-900 px-5 py-2.5 text-white"
+                className="mt-4 rounded-full bg-stone-900 px-5 py-2.5 text-white hover:bg-amber-700 transition"
               >
                 Clear filters
               </button>
@@ -236,7 +432,7 @@ function Dashboard() {
               </p>
               <a
                 href="#products"
-                className="mt-5 inline-block rounded-full bg-stone-900 px-6 py-3 font-semibold text-white hover:bg-amber-700"
+                className="mt-5 inline-block rounded-full bg-stone-900 px-6 py-3 font-semibold text-white hover:bg-amber-700 transition"
               >
                 Browse Products
               </a>
@@ -246,49 +442,73 @@ function Dashboard() {
               <div className="space-y-4">
                 {cart.map((item) => (
                   <article
-                    key={item.id}
-                    className="flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-4 sm:flex-row sm:items-center"
+                    key={item.cartKey}
+                    className="flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-4 sm:flex-row sm:items-center shadow-xs"
                   >
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="h-28 w-24 rounded-xl object-cover"
-                    />
+                    <div className="h-28 w-24 shrink-0 overflow-hidden rounded-xl bg-stone-100">
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-stone-400 text-xs">
+                          No image
+                        </div>
+                      )}
+                    </div>
 
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">
-                        {item.category}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {item.brand && (
+                          <span className="text-xs font-bold uppercase text-stone-900">
+                            {item.brand}
+                          </span>
+                        )}
+                        <span className="text-xs font-semibold uppercase text-amber-700">
+                          {item.category}
+                        </span>
+                      </div>
+
+                      <h3 className="mt-1 font-bold text-stone-900">{item.name}</h3>
+
+                      {item.selectedColorSize && (
+                        <p className="mt-0.5 text-xs font-medium text-stone-500">
+                          Option: <span className="font-semibold text-stone-700">{item.selectedColorSize}</span>
+                        </p>
+                      )}
+
+                      <p className="mt-1 text-sm text-stone-600">
+                        ₹{Number(item.price).toLocaleString("en-IN")} each
                       </p>
-                      <h3 className="mt-1 font-bold">{item.name}</h3>
-                      <p className="mt-1 text-stone-600">
-                        ₹{item.price.toLocaleString("en-IN")} each
-                      </p>
-                      <p className="mt-2 font-bold">
+
+                      <p className="mt-2 font-bold text-stone-900">
                         Subtotal: ₹
-                        {(item.price * item.quantity).toLocaleString("en-IN")}
+                        {(Number(item.price) * item.quantity).toLocaleString("en-IN")}
                       </p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex items-center rounded-full border border-stone-300">
+                      <div className="flex items-center rounded-full border border-stone-300 bg-stone-50">
                         <button
                           type="button"
                           aria-label={`Decrease ${item.name} quantity`}
-                          onClick={() => changeQuantity(item.id, -1)}
-                          className="px-3 py-2 hover:bg-stone-100"
+                          onClick={() => changeQuantity(item.cartKey, -1)}
+                          className="px-3 py-2 hover:bg-stone-200 rounded-l-full transition"
                         >
                           −
                         </button>
 
-                        <span className="min-w-8 text-center font-semibold">
+                        <span className="min-w-8 text-center font-semibold text-sm">
                           {item.quantity}
                         </span>
 
                         <button
                           type="button"
                           aria-label={`Increase ${item.name} quantity`}
-                          onClick={() => changeQuantity(item.id, 1)}
-                          className="px-3 py-2 hover:bg-stone-100"
+                          onClick={() => changeQuantity(item.cartKey, 1)}
+                          className="px-3 py-2 hover:bg-stone-200 rounded-r-full transition"
                         >
                           +
                         </button>
@@ -296,8 +516,8 @@ function Dashboard() {
 
                       <button
                         type="button"
-                        onClick={() => removeFromCart(item.id)}
-                        className="text-sm font-semibold text-red-600 hover:text-red-800"
+                        onClick={() => removeFromCart(item.cartKey)}
+                        className="text-sm font-semibold text-red-600 hover:text-red-800 transition"
                       >
                         Remove
                       </button>
@@ -307,35 +527,130 @@ function Dashboard() {
               </div>
 
               {/* Order summary */}
-              <aside className="h-fit rounded-2xl border border-stone-200 bg-white p-6">
+              <aside className="h-fit rounded-2xl border border-stone-200 bg-white p-6 shadow-xs">
                 <h3 className="text-xl font-bold">Order Summary</h3>
 
                 <div className="mt-5 flex justify-between gap-3 text-stone-600">
                   <span>Total items</span>
-                  <span>{cartCount}</span>
+                  <span className="font-semibold">{cartCount}</span>
                 </div>
 
                 <div className="mt-3 flex justify-between gap-3 text-stone-600">
                   <span>Subtotal</span>
-                  <span>₹{cartTotal.toLocaleString("en-IN")}</span>
+                  <span className="font-semibold">₹{cartTotal.toLocaleString("en-IN")}</span>
                 </div>
+
+                {/* Staff Exclusive 20% Discount Row */}
+                {isEmployee && (
+                  <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                    <span className="text-amber-800 font-semibold flex items-center gap-1">
+                      <span>👔 Staff Discount (20%):</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setStaffDiscountActive(!staffDiscountActive)}
+                      className={`rounded-md px-2 py-0.5 text-[10px] font-bold transition ${
+                        staffDiscountActive
+                          ? "bg-emerald-600 text-white"
+                          : "border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                      }`}
+                    >
+                      {staffDiscountActive ? "-₹" + staffDiscount.toLocaleString("en-IN") + " (Active)" : "Apply 20%"}
+                    </button>
+                  </div>
+                )}
 
                 <div className="mt-4 border-t border-stone-200 pt-4">
                   <div className="flex justify-between gap-3 text-lg font-black">
                     <span>Total</span>
-                    <span>₹{cartTotal.toLocaleString("en-IN")}</span>
+                    <span className="text-stone-900">
+                      ₹{finalCartTotal.toLocaleString("en-IN")}
+                    </span>
                   </div>
-                  <p className="mt-2 text-xs text-stone-500">
-                    Shipping and taxes are not included in this demo.
+                  {staffDiscount > 0 && (
+                    <p className="mt-1 text-xs font-semibold text-emerald-700">
+                      You saved ₹{staffDiscount.toLocaleString("en-IN")} with Employee Staff Discount!
+                    </p>
+                  )}
+                  <p className="mt-1.5 text-xs text-stone-500">
+                    Direct from MySQL retail database inventory.
                   </p>
                 </div>
 
+                {/* Customer / Staff Address Preview */}
+                {currentUser ? (
+                  <div className="mt-5 rounded-xl border border-stone-200 bg-stone-50 p-3.5 text-xs">
+                    <div className="flex items-center justify-between text-stone-500 font-bold uppercase tracking-wider mb-1">
+                      <span>{isEmployee ? "Staff Member Verification" : "Delivery Details"}</span>
+                      <button
+                        type="button"
+                        onClick={onNavigateToAuth}
+                        className="text-[10px] text-amber-700 hover:underline"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <p className="font-bold text-stone-900">
+                      {currentUser.name}{" "}
+                      {isEmployee && (
+                        <span className="text-amber-800 font-normal">
+                          ({currentUser.emp_role})
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-stone-600">{currentUser.mobile_no || currentUser.mobile}</p>
+                    <p className="mt-1 text-stone-600 leading-snug">
+                      {isEmployee
+                        ? `Assigned Branch: ${currentUser.branch_name} (Branch #${currentUser.branch_id})`
+                        : [
+                            currentUser.house_no,
+                            currentUser.street,
+                            currentUser.area,
+                            currentUser.city,
+                            currentUser.state,
+                            currentUser.pincode,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-xl border border-dashed border-amber-300 bg-amber-50/60 p-3 text-xs text-amber-900">
+                    <p className="font-semibold">Have a Customer Account?</p>
+                    <p className="mt-0.5 text-amber-800 text-[11px]">
+                      Sign in to save your address details and track orders.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={onNavigateToAuth}
+                      className="mt-2 font-bold text-amber-900 underline hover:text-stone-900"
+                    >
+                      Sign In / Register Customer →
+                    </button>
+                  </div>
+                )}
+
                 <button
                   type="button"
-                  onClick={() =>
-                    alert("Checkout will be added after backend integration.")
-                  }
-                  className="mt-6 w-full rounded-full bg-stone-900 px-5 py-3 font-semibold text-white hover:bg-amber-700"
+                  onClick={() => {
+                    const recipient = currentUser ? currentUser.name : "Valued Customer";
+                    const address = currentUser
+                      ? isEmployee
+                        ? `Staff Member Pickup at ${currentUser.branch_name}`
+                        : [
+                            currentUser.house_no,
+                            currentUser.street,
+                            currentUser.area,
+                            currentUser.city,
+                            currentUser.state,
+                            currentUser.pincode,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")
+                      : "Standard Address";
+                    alert(`Order confirmed for ${recipient}!\nDelivery: ${address}\nTotal Amount: ₹${finalCartTotal.toLocaleString("en-IN")}${staffDiscount > 0 ? " (Includes 20% Staff Discount)" : ""}`);
+                  }}
+                  className="mt-5 w-full rounded-full bg-stone-900 px-5 py-3 font-semibold text-white hover:bg-amber-700 transition"
                 >
                   Proceed to Checkout
                 </button>
@@ -343,7 +658,7 @@ function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setCart([])}
-                  className="mt-3 w-full rounded-full border border-stone-300 px-5 py-3 font-semibold hover:bg-stone-100"
+                  className="mt-3 w-full rounded-full border border-stone-300 px-5 py-3 font-semibold hover:bg-stone-100 transition"
                 >
                   Clear Cart
                 </button>
@@ -353,9 +668,50 @@ function Dashboard() {
         </section>
       </main>
 
-      <p className="mx-auto max-w-7xl px-5 py-3 text-sm text-stone-600">
-        Backend status: {apiStatus}
-      </p>
+      {/* Staff Exclusive Floating Portal Trigger (Visible only to employees) */}
+      {isEmployee && (
+        <button
+          type="button"
+          onClick={() => setIsEmployeePortalOpen(true)}
+          className="fixed bottom-6 right-6 z-30 flex items-center gap-2 rounded-full bg-amber-600 px-4 py-3 font-bold text-stone-950 shadow-xl border-2 border-amber-300 hover:bg-amber-500 hover:scale-105 active:scale-95 transition"
+        >
+          <span className="text-lg">⚙️</span>
+          <span className="text-xs uppercase tracking-wider">Staff Terminal</span>
+        </button>
+      )}
+
+      {/* Employee Portal Modal */}
+      {isEmployee && (
+        <EmployeePortal
+          isOpen={isEmployeePortalOpen}
+          onClose={() => setIsEmployeePortalOpen(false)}
+          employee={currentUser}
+          products={products}
+          onUpdateStock={handleUpdateStock}
+          onApplyStaffDiscount={(active) => setStaffDiscountActive(active)}
+          staffDiscountActive={staffDiscountActive}
+        />
+      )}
+
+      {/* Database connection status badge */}
+      <div className="border-t border-stone-200 bg-white/50 backdrop-blur-xs py-3">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 text-xs text-stone-600">
+          <div className="flex items-center gap-2">
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${
+                apiStatus.ok ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+              }`}
+            />
+            <span className="font-medium">
+              Database: <strong className="text-stone-800">{apiStatus.message}</strong>
+            </span>
+          </div>
+
+          <span className="hidden sm:inline text-stone-400">
+            MySQL Workbench • retail_db
+          </span>
+        </div>
+      </div>
 
       <Footer />
     </div>
