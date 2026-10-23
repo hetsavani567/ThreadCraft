@@ -1,4 +1,3 @@
-
 function ProductCard({ product, onAddToCart }) {
   return (
     <article className="group overflow-hidden rounded-2xl border border-stone-200 bg-white">

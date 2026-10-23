@@ -13,14 +13,14 @@ function Navbar({ cartCount }) {
           <a href="#footer" className="hover:text-amber-700">About</a>
         </div>
 
-        
-<a
-  href="#cart"
-  aria-label={`View shopping cart with ${cartCount} items`}
-  className="rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold hover:bg-stone-100"
->
-  Cart ({cartCount})
-</a>
+
+        <a
+          href="#cart"
+          aria-label={`View shopping cart with ${cartCount} items`}
+          className="rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold hover:bg-stone-100"
+        >
+          Cart ({cartCount})
+        </a>
 
       </nav>
     </header>
