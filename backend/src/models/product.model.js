@@ -106,3 +106,89 @@ export const getProductById = async (id) => {
     const [rows] = await pool.query(query, [id]);
     return rows[0] || null;
 };
+
+export const createProductWithVariant = async ({
+    category_id,
+    brand_id,
+    product_name,
+    base_price,
+    product_description,
+    image_url,
+    color_size,
+    selling_price,
+    initial_stock = 0,
+    branch_id = 1
+}) => {
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        // 1. Execute stored procedure for product insertion
+        const [prodResult] = await connection.query(
+            "CALL sp_insert_product(?, ?, ?, ?, ?, ?, @new_product_id)",
+            [
+                category_id,
+                brand_id,
+                product_name.trim(),
+                base_price,
+                product_description?.trim() || null,
+                image_url?.trim() || null
+            ]
+        );
+
+        // Extract generated product_id from procedure result
+        const productId = prodResult[0]?.[0]?.inserted_id || prodResult[0]?.[0]?.inserted_product_id;
+        if (!productId) {
+            throw new Error("Failed to retrieve generated product ID from sp_insert_product.");
+        }
+
+        // 2. Execute stored procedure for variant & initial inventory insertion
+        const [variantResult] = await connection.query(
+            "CALL sp_add_product_variant(?, ?, ?, ?, @new_variant_id)",
+            [
+                productId,
+                color_size.trim(),
+                selling_price || base_price,
+                Number(initial_stock) || 0
+            ]
+        );
+
+        const variantId = variantResult[0]?.[0]?.variant_id;
+        if (!variantId) {
+            throw new Error("Failed to retrieve generated variant ID from sp_add_product_variant.");
+        }
+
+        // If a non-default branch is specified and stock > 0, ensure inventory record for that branch
+        if (branch_id && Number(branch_id) !== 1 && Number(initial_stock) > 0) {
+            await connection.query(
+                `INSERT INTO inventory (branch_id, variant_id, quantity, reorder_level)
+                 VALUES (?, ?, ?, 10)
+                 ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)`,
+                [Number(branch_id), variantId, Number(initial_stock)]
+            );
+        }
+
+        await connection.commit();
+        return { productId, variantId };
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+};
+
+export const updateProductVariant = async (variantId, { color_size, selling_price, is_active = 1 }) => {
+    const [rows] = await pool.query(
+        "CALL sp_update_product_variant(?, ?, ?, ?)",
+        [
+            Number(variantId),
+            color_size.trim(),
+            Number(selling_price),
+            is_active ? 1 : 0
+        ]
+    );
+
+    return rows[0]?.[0] || { updated_variant_id: Number(variantId), status: "Success" };
+};
+

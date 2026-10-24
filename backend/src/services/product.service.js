@@ -19,3 +19,15 @@ export const fetchProductById = async (id) => {
     if (!product) return null;
     return formatProduct(product);
 };
+
+export const addProductWithVariant = async (data) => {
+    const result = await productModel.createProductWithVariant(data);
+    const createdProduct = await productModel.getProductById(result.productId);
+    return formatProduct(createdProduct);
+};
+
+export const updateProductVariant = async (variantId, data) => {
+    return await productModel.updateProductVariant(variantId, data);
+};
+
+

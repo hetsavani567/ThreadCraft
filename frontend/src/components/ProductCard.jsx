@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-function ProductCard({ product, onAddToCart, isEmployee, onAdjustStock }) {
+function ProductCard({ product, onAddToCart, isEmployee, onAdjustStock, onEditVariant }) {
   const [imgError, setImgError] = useState(false);
   const variants = product.variants && product.variants.length > 0 ? product.variants : [];
   
@@ -13,17 +13,31 @@ function ProductCard({ product, onAddToCart, isEmployee, onAdjustStock }) {
   const displayPrice = selectedVariant?.selling_price || product.price || 0;
   const isOutOfStock = product.total_stock !== undefined && product.total_stock <= 0;
 
-  function handleAddToCartClick() {
-    onAddToCart({
-      ...product,
-      price: displayPrice,
-      selectedVariant: selectedVariant || null,
-      selectedColorSize: selectedVariant?.color_size || null
-    });
+  function handleAddToCartClick(e) {
+    if (e) e.stopPropagation();
+    if (onAddToCart) {
+      onAddToCart({
+        ...product,
+        price: displayPrice,
+        selectedVariant: selectedVariant || null,
+        selectedColorSize: selectedVariant?.color_size || null,
+      });
+    }
+  }
+
+  function handleCardClick() {
+    if (isEmployee && onEditVariant) {
+      onEditVariant(product, selectedVariant);
+    }
   }
 
   return (
-    <article className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+    <article
+      onClick={handleCardClick}
+      className={`group flex flex-col justify-between overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+        isEmployee ? "cursor-pointer ring-1 hover:ring-2 hover:ring-amber-500/70" : ""
+      }`}
+    >
       <div>
         {/* Product Image container */}
         <div className="relative aspect-4/5 overflow-hidden bg-stone-100">
@@ -68,8 +82,24 @@ function ProductCard({ product, onAddToCart, isEmployee, onAdjustStock }) {
             )}
           </div>
 
+          {/* Staff Edit Variant Trigger Button */}
+          {isEmployee && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onEditVariant) onEditVariant(product, selectedVariant);
+              }}
+              className="absolute top-3 right-3 z-10 flex items-center gap-1 rounded-full bg-amber-500 hover:bg-amber-400 text-stone-950 px-2.5 py-1 text-xs font-bold shadow-md transition transform hover:scale-105 active:scale-95 cursor-pointer"
+              title="Click to edit this variant using sp_update_product_variant"
+            >
+              <span>✏️</span>
+              <span>Edit Variant</span>
+            </button>
+          )}
+
           {/* Rating Badge */}
-          {product.rating && (
+          {!isEmployee && product.rating && (
             <div className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-amber-900 shadow-sm backdrop-blur-sm">
               <svg className="h-3.5 w-3.5 fill-amber-500 text-amber-500" viewBox="0 0 20 20">
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -103,32 +133,18 @@ function ProductCard({ product, onAddToCart, isEmployee, onAdjustStock }) {
           )}
         </div>
 
-        {/* Exclusive Employee Bar (visible ONLY to authenticated employees) */}
-        {isEmployee && (
-          <div className="bg-amber-100/90 border-b border-amber-200 px-3 py-1.5 flex items-center justify-between text-[11px] text-amber-900">
-            <span className="font-bold flex items-center gap-1">
-              <span>🔒 Staff:</span> {product.total_stock} in stock
-            </span>
-            <div className="flex items-center gap-1">
-              {onAdjustStock && (
-                <button
-                  type="button"
-                  onClick={() => onAdjustStock(product.id, 5)}
-                  className="rounded bg-amber-800 px-2 py-0.5 font-bold text-[10px] text-white hover:bg-stone-900 transition"
-                  title="Quick Restock +5 units"
-                >
-                  +5 Stock
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Content Section */}
         <div className="p-4">
-          <h3 className="text-lg font-bold text-stone-900 group-hover:text-amber-800 transition-colors">
-            {product.name}
-          </h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-lg font-bold text-stone-900 group-hover:text-amber-800 transition-colors">
+              {product.name}
+            </h3>
+            {isEmployee && (
+              <span className="text-[10px] bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold shrink-0">
+                Click to Edit
+              </span>
+            )}
+          </div>
 
           <p className="mt-1 line-clamp-2 text-sm text-stone-500">
             {product.description}
@@ -148,7 +164,10 @@ function ProductCard({ product, onAddToCart, isEmployee, onAdjustStock }) {
                   <button
                     key={v.variant_id}
                     type="button"
-                    onClick={() => setSelectedVariantId(v.variant_id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedVariantId(v.variant_id);
+                    }}
                     className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
                       selectedVariantId === v.variant_id
                         ? "bg-amber-700 text-white shadow-xs"
@@ -164,41 +183,49 @@ function ProductCard({ product, onAddToCart, isEmployee, onAdjustStock }) {
         </div>
       </div>
 
-      {/* Footer / Price & Add to Cart button */}
+      {/* Footer / Price Section */}
       <div className="border-t border-stone-100 p-4 pt-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <span className="text-xs text-stone-400 block font-medium">Price</span>
+            <span className="text-xs text-stone-400 block font-medium">Selling Price</span>
             <p className="text-xl font-extrabold text-stone-900">
               ₹{Number(displayPrice).toLocaleString("en-IN")}
             </p>
           </div>
-
-          <button
-            type="button"
-            disabled={isOutOfStock}
-            onClick={handleAddToCartClick}
-            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 shadow-sm ${
-              isOutOfStock
-                ? "bg-stone-300 cursor-not-allowed text-stone-500"
-                : "bg-stone-900 hover:bg-amber-700 hover:shadow active:scale-95"
-            }`}
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
+          {/* Non-Employee: Add to Cart button */}
+          {!isEmployee && (
+            <button
+              type="button"
+              disabled={isOutOfStock}
+              onClick={handleAddToCartClick}
+              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-white transition-all duration-200 shadow-sm ${
+                isOutOfStock
+                  ? "bg-stone-300 cursor-not-allowed text-stone-500"
+                  : "bg-stone-900 hover:bg-amber-700 hover:shadow active:scale-95 cursor-pointer"
+              }`}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 4.5v15m7.5-7.5h-15"
-              />
-            </svg>
-            <span>{isOutOfStock ? "Out of Stock" : "Add to Cart"}</span>
-          </button>
+              <svg
+                className="h-3.5 w-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 4.5v15m7.5-7.5h-15"
+                />
+              </svg>
+              <span>{isOutOfStock ? "Out of Stock" : "Add to Cart"}</span>
+            </button>
+          )}
+
+          {isEmployee && (
+            <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
+              ✏️ Tap to Edit
+            </span>
+          )}
         </div>
       </div>
     </article>

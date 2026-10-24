@@ -42,6 +42,25 @@ export async function fetchCategories() {
   return apiRequest("/categories");
 }
 
+export async function fetchBrands() {
+  return apiRequest("/brands");
+}
+
+export async function createProduct(productData) {
+  return apiRequest("/products", {
+    method: "POST",
+    body: JSON.stringify(productData),
+  });
+}
+
+export async function updateProductVariant(variantId, variantData) {
+  return apiRequest(`/products/variants/${variantId}`, {
+    method: "PUT",
+    body: JSON.stringify(variantData),
+  });
+}
+
 export async function fetchHealth() {
   return apiRequest("/health");
 }
+
