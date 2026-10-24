@@ -1,18 +1,22 @@
-import pool from "../db/index.js";
+import pool, { formatDbError } from "../db/index.js";
 
 export const getHealth = async (req, res) => {
     try {
         await pool.query("SELECT 1");
         res.json({
             status: "ok",
-            message: `Connected to MySQL database (${process.env.DB_NAME || "retail_db"})`,
-            database: process.env.DB_NAME || "retail_db"
+            connected: true,
+            database: process.env.DB_NAME || "retail_db",
+            message: `Connected to MySQL database (${process.env.DB_NAME || "retail_db"})`
         });
     } catch (error) {
-        console.error("Database connection check failed:", error.message);
-        res.status(500).json({
-            status: "error",
-            message: `MySQL Connection Error: ${error.message}`
+        const errorDetail = formatDbError(error);
+        res.json({
+            status: "offline",
+            connected: false,
+            database: process.env.DB_NAME || "retail_db",
+            message: errorDetail,
+            error: errorDetail
         });
     }
 };

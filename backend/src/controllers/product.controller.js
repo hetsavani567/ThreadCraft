@@ -1,4 +1,5 @@
 import * as productService from "../services/product.service.js";
+import { formatDbError } from "../db/index.js";
 
 export const getProducts = async (req, res, next) => {
     try {
@@ -6,10 +7,10 @@ export const getProducts = async (req, res, next) => {
         const products = await productService.fetchAllProducts({ category, brand, search });
         res.json(products);
     } catch (error) {
-        console.error("Database error in getProducts:", error);
+        console.error("Error in getProducts:", error);
         res.status(500).json({
-            message: "Failed to fetch products from MySQL database",
-            error: error.message
+            message: "Failed to fetch products",
+            error: formatDbError(error)
         });
     }
 };
@@ -23,10 +24,10 @@ export const getProductById = async (req, res, next) => {
         }
         res.json(product);
     } catch (error) {
-        console.error("Database error in getProductById:", error);
+        console.error("Error in getProductById:", error);
         res.status(500).json({
             message: "Failed to fetch product details",
-            error: error.message
+            error: formatDbError(error)
         });
     }
 };

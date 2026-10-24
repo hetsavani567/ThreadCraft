@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { apiRequest, fetchProducts, fetchCategories } from "../services/api";
+import { fallbackProducts, fallbackCategories } from "../data/fallbackProducts";
 import Navbar from "./Navbar.jsx";
 import ProductCard from "./ProductCard.jsx";
 import Footer from "./Footer.jsx";
@@ -15,6 +16,7 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
   const [error, setError] = useState(null);
   const [isEmployeePortalOpen, setIsEmployeePortalOpen] = useState(false);
   const [staffDiscountActive, setStaffDiscountActive] = useState(false);
+  const [showDbGuide, setShowDbGuide] = useState(false);
   const [apiStatus, setApiStatus] = useState({
     ok: false,
     message: "Connecting to MySQL database...",
@@ -39,53 +41,50 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
     setIsLoading(true);
     setError(null);
 
+    let dbConnected = false;
+
+    // 1. Health check & DB connection
     try {
-      // 1. Health check & DB connection
-      try {
-        const health = await apiRequest("/health");
-        setApiStatus({
-          ok: true,
-          message: health.message,
-          database: health.database || "retail_db"
-        });
-      } catch (err) {
-        setApiStatus({
-          ok: false,
-          message: `Backend or MySQL not reachable: ${err.message}`,
-          database: ""
-        });
-      }
+      const health = await apiRequest("/health");
+      dbConnected = health.connected === true || health.status === "ok";
+      setApiStatus({
+        ok: dbConnected,
+        message: health.message || (dbConnected ? "Connected to MySQL database (retail_db)" : "MySQL database is offline"),
+        database: health.database || "retail_db"
+      });
+    } catch (err) {
+      setApiStatus({
+        ok: false,
+        message: `Backend API server offline (${err.message}). Start backend with 'npm run dev'.`,
+        database: ""
+      });
+    }
 
-      // 2. Fetch categories from MySQL
-      try {
-        const cats = await fetchCategories();
-        if (Array.isArray(cats) && cats.length > 0) {
-          const list = ["All", ...cats.map((c) => c.category_type)];
-          setCategories(Array.from(new Set(list)));
-        }
-      } catch (catErr) {
-        console.warn("Could not load categories endpoint:", catErr);
+    // 2. Fetch categories from MySQL or fallback
+    try {
+      const cats = await fetchCategories();
+      if (Array.isArray(cats) && cats.length > 0) {
+        const list = ["All", ...cats.map((c) => c.category_type)];
+        setCategories(Array.from(new Set(list)));
+      } else {
+        setCategories(fallbackCategories);
       }
+    } catch (catErr) {
+      console.warn("Could not load categories endpoint, using fallback:", catErr);
+      setCategories(fallbackCategories);
+    }
 
-      // 3. Fetch products from MySQL
+    // 3. Fetch products from MySQL or fallback
+    try {
       const data = await fetchProducts();
-      const productList = Array.isArray(data) ? data : [];
-      setProducts(productList);
-
-      // Fallback: derive categories from products if category list was empty
-      if (productList.length > 0) {
-        setCategories((prev) => {
-          if (prev.length > 1) return prev;
-          const found = ["All", ...productList.map((p) => p.category).filter(Boolean)];
-          return Array.from(new Set(found));
-        });
+      if (Array.isArray(data) && data.length > 0) {
+        setProducts(data);
+      } else {
+        setProducts(fallbackProducts);
       }
     } catch (err) {
-      console.error("Failed to load products from MySQL:", err);
-      setError(
-        err.message ||
-          "Could not connect to the backend API or MySQL database. Please verify backend is running on port 5000 and MySQL retail_db is active."
-      );
+      console.warn("Failed to load products from API, falling back to demo catalog:", err);
+      setProducts(fallbackProducts);
     } finally {
       setIsLoading(false);
     }
@@ -332,7 +331,51 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
             </button>
           </div>
 
-          {/* Products List / Loading / Error states */}
+          {/* Notice banner when MySQL is offline */}
+          {!apiStatus.ok && (
+            <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 rounded-full bg-amber-100 p-2 text-amber-800">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-amber-900">
+                      MySQL Database Notice — Showing Demo Catalog
+                    </h4>
+                    <p className="mt-0.5 text-xs text-amber-800 max-w-2xl leading-relaxed">
+                      {apiStatus.message || "MySQL retail_db is offline or backend server is not running."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowDbGuide(true)}
+                    className="rounded-full bg-amber-200 px-4 py-2 text-xs font-bold text-amber-900 hover:bg-amber-300 transition"
+                  >
+                    Setup Guide
+                  </button>
+                  <button
+                    type="button"
+                    onClick={loadData}
+                    disabled={isLoading}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-amber-800 px-4 py-2 text-xs font-bold text-white hover:bg-amber-900 transition"
+                  >
+                    <svg className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    Retry Connection
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Products List / Loading states */}
           {isLoading ? (
             <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {[1, 2, 3, 4].map((n) => (
@@ -350,33 +393,6 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
                   </div>
                 </div>
               ))}
-            </div>
-          ) : error ? (
-            <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-red-900">
-              <svg
-                className="mx-auto h-12 w-12 text-red-500"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
-                />
-              </svg>
-              <h3 className="mt-3 text-lg font-bold">Failed to load from MySQL</h3>
-              <p className="mt-1 text-sm text-red-700 max-w-md mx-auto">{error}</p>
-              <div className="mt-5 flex justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={loadData}
-                  className="rounded-full bg-red-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-red-800 transition"
-                >
-                  Retry Connection
-                </button>
-              </div>
             </div>
           ) : filteredProducts.length > 0 ? (
             <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -712,6 +728,84 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
           </span>
         </div>
       </div>
+
+      
+      {/* MySQL Database Setup Guide Modal */}
+      {showDbGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in duration-200">
+            <div className="flex items-center justify-between border-b border-stone-200 pb-4">
+              <div className="flex items-center gap-2">
+                <span className="rounded-lg bg-amber-100 p-2 text-amber-900">🗄️</span>
+                <h3 className="text-lg font-bold text-stone-900">MySQL Database Setup Guide</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDbGuide(false)}
+                className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4 text-sm text-stone-700">
+              <div className="rounded-xl bg-amber-50 p-3.5 border border-amber-200">
+                <p className="font-semibold text-amber-900">Connection Status:</p>
+                <p className="mt-1 text-xs text-amber-800">{apiStatus.message}</p>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-stone-900 flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-stone-900 text-[10px] text-white">1</span>
+                  Start MySQL Server
+                </h4>
+                <p className="text-xs text-stone-600 mt-1">If MySQL is installed as a Windows service (MySQL 8.0):</p>
+                <pre className="mt-1.5 rounded-lg bg-stone-900 p-2.5 text-xs text-amber-300 font-mono select-all">net start MySQL80</pre>
+                <p className="text-xs text-stone-500 mt-1">Run in Administrator Command Prompt / PowerShell, or start MySQL via XAMPP Control Panel.</p>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-stone-900 flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-stone-900 text-[10px] text-white">2</span>
+                  Initialize retail_db Database
+                </h4>
+                <p className="text-xs text-stone-600 mt-1">Run this automated setup script in your ThreadCraft project folder:</p>
+                <pre className="mt-1.5 rounded-lg bg-stone-900 p-2.5 text-xs text-amber-300 font-mono select-all">npm run db:init</pre>
+                <p className="text-xs text-stone-500 mt-1">Automatically runs <code className="bg-stone-100 px-1 py-0.5 rounded">schema.sql</code> and <code className="bg-stone-100 px-1 py-0.5 rounded">sample_data.sql</code>.</p>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-stone-900 flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-stone-900 text-[10px] text-white">3</span>
+                  Start Frontend & Backend
+                </h4>
+                <pre className="mt-1.5 rounded-lg bg-stone-900 p-2.5 text-xs text-amber-300 font-mono select-all">npm run dev</pre>
+                <p className="text-xs text-stone-500 mt-1">Both Express API (port 5000) and React Vite (port 5173) start together.</p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3 border-t border-stone-200 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowDbGuide(false)}
+                className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDbGuide(false);
+                  loadData();
+                }}
+                className="rounded-xl bg-stone-900 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-700 transition"
+              >
+                Retry Connection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
