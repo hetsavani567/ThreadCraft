@@ -9,11 +9,22 @@ export const getHealth = async (req, res) => {
             database: process.env.DB_NAME || "retail_db"
         });
     } catch (error) {
-        console.error("Database connection check failed:", error.message);
-        res.status(500).json({
-            status: "error",
-            message: `MySQL Connection Error: ${error.message}`
-        });
+        try {
+            const conn = await pool.getConnection();
+            await conn.query("SELECT 1");
+            conn.release();
+            return res.json({
+                status: "ok",
+                message: `Connected to MySQL database (${process.env.DB_NAME || "retail_db"})`,
+                database: process.env.DB_NAME || "retail_db"
+            });
+        } catch (retryErr) {
+            console.error("Database connection check failed:", retryErr.message);
+            res.status(500).json({
+                status: "error",
+                message: `MySQL Connection Error: ${retryErr.message}`
+            });
+        }
     }
 };
 
