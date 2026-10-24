@@ -379,73 +379,8 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
       </div>
 
       {/* Main Container Card */}
-      <div className="mx-auto w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-xl border border-stone-200 grid lg:grid-cols-12">
-        {/* Left Visual Column */}
-        <div className="lg:col-span-5 bg-stone-900 p-8 sm:p-10 text-white flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute inset-0 opacity-25">
-            <img
-              src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1000&q=80"
-              alt="Fashion clothing collection"
-              className="h-full w-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-900/80 to-transparent" />
-          </div>
-
-          <div className="relative z-10">
-            <div className="flex items-center gap-2">
-              <span className="inline-block rounded-full bg-amber-500/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-300 border border-amber-500/30">
-                ThreadCraft Access
-              </span>
-              {accountType === "employee" && mode === "signup" && (
-                <span className="rounded-full bg-emerald-500/30 px-2.5 py-0.5 text-xs font-bold text-emerald-300 border border-emerald-400/40">
-                  Staff Role
-                </span>
-              )}
-            </div>
-
-            <h2 className="mt-4 text-3xl font-black leading-tight sm:text-4xl">
-              Elevate your <span className="text-amber-400">everyday look.</span>
-            </h2>
-            <p className="mt-3 text-sm text-stone-300 leading-relaxed">
-              Customers enjoy personalized ordering and address management. Employees unlock live inventory adjustments, POS tools, and branch management.
-            </p>
-          </div>
-
-          {/* Employee Exclusive Features Highlight Box */}
-          <div className="relative z-10 mt-6 rounded-2xl bg-white/10 p-4 backdrop-blur-md border border-white/15">
-            <p className="text-xs font-bold uppercase tracking-wider text-amber-300">
-              Staff Exclusive Features (Employee Role):
-            </p>
-            <ul className="mt-2 space-y-1.5 text-xs text-stone-200">
-              <li className="flex items-center gap-1.5">
-                <span className="text-amber-400">✓</span>
-                <span>Live Inventory Restock & Stock Adjustment</span>
-              </li>
-              <li className="flex items-center gap-1.5">
-                <span className="text-amber-400">✓</span>
-                <span>Branch Orders Fulfillment Terminals</span>
-              </li>
-              <li className="flex items-center gap-1.5">
-                <span className="text-amber-400">✓</span>
-                <span>20% Employee Staff Discount in Checkout</span>
-              </li>
-              <li className="flex items-center gap-1.5">
-                <span className="text-amber-400">✓</span>
-                <span>Staff Controls directly on Product Cards</span>
-              </li>
-            </ul>
-            <p className="mt-2 text-[10px] text-amber-200/80 italic">
-              * Frontend-only mock: zero database or backend modifications.
-            </p>
-          </div>
-
-          <div className="relative z-10 mt-6 text-xs text-stone-400">
-            © {new Date().getFullYear()} ThreadCraft Retail Store
-          </div>
-        </div>
-
-        {/* Right Form Column */}
-        <div className="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-center">
+      <div className="mx-auto w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-xl border border-stone-200">
+        <div className="p-6 sm:p-10 flex flex-col justify-center">
           {/* Active Logged-in Banner */}
           {currentUser ? (
             <div className="rounded-2xl border border-stone-200 bg-stone-50 p-6 text-center">
