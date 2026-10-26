@@ -1,17 +1,22 @@
+
 import pool, { formatDbError } from "../db/index.js";
 
 export const getHealth = async (req, res) => {
     try {
         await pool.query("SELECT 1");
+
         res.json({
             status: "ok",
             connected: true,
             database: process.env.DB_NAME || "retail_db",
-            message: `Connected to MySQL database (${process.env.DB_NAME || "retail_db"})`
+            message: `Connected to MySQL database (${
+                process.env.DB_NAME || "retail_db"
+            })`
         });
     } catch (error) {
         const errorDetail = formatDbError(error);
-        res.json({
+
+        res.status(500).json({
             status: "offline",
             connected: false,
             database: process.env.DB_NAME || "retail_db",

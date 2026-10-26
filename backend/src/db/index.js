@@ -44,6 +44,10 @@ const pool = mysql.createPool({
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0,
+    maxIdle: 0,
+    idleTimeout: 30000,
     ssl: (process.env.DB_SSL === "true" || process.env.DB_HOST?.includes("tidbcloud.com"))
         ? { minVersion: "TLSv1.2", rejectUnauthorized: true }
         : undefined

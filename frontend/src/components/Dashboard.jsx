@@ -5,6 +5,7 @@ import Navbar from "./Navbar.jsx";
 import ProductCard from "./ProductCard.jsx";
 import Footer from "./Footer.jsx";
 import EmployeePortal from "./EmployeePortal.jsx";
+import EditVariantModal from "./EditVariantModal.jsx";
 
 function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
   const [products, setProducts] = useState([]);
@@ -15,6 +16,7 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEmployeePortalOpen, setIsEmployeePortalOpen] = useState(false);
+  const [editingVariantProduct, setEditingVariantProduct] = useState(null);
   const [staffDiscountActive, setStaffDiscountActive] = useState(false);
   const [showDbGuide, setShowDbGuide] = useState(false);
   const [apiStatus, setApiStatus] = useState({
@@ -147,12 +149,10 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
   );
 
   const cartTotal = cart.reduce(
-    (total, item) => total + item.price * item.quantity,
+    (total, item) => total + (Number(item.price) || 0) * item.quantity,
     0
   );
 
-  const staffDiscount = isEmployee && staffDiscountActive ? Math.round(cartTotal * 0.2) : 0;
-  const finalCartTotal = Math.max(0, cartTotal - staffDiscount);
 
   const filteredProducts = products.filter((product) => {
     const searchLower = search.toLowerCase();
@@ -181,52 +181,54 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
       />
 
       <main>
-        {/* Hero section */}
-        <section
-          id="home"
-          className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-14 md:grid-cols-2 md:py-20"
-        >
-          <div>
-            <p className="text-sm font-bold uppercase tracking-[0.25em] text-amber-700">
-              Everyday style, made simple
-            </p>
+        {/* Hero section (Hidden for Employees, visible to Guests and Customers) */}
+        {!isEmployee && (
+          <section
+            id="home"
+            className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-14 md:grid-cols-2 md:py-20"
+          >
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.25em] text-amber-700">
+                Everyday style, made simple
+              </p>
 
-            <h1 className="mt-5 text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-              Find your
-              <span className="block text-amber-700">
-                everyday look.
-              </span>
-            </h1>
+              <h1 className="mt-5 text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+                Find your
+                <span className="block text-amber-700">
+                  everyday look.
+                </span>
+              </h1>
 
-            <p className="mt-5 max-w-lg leading-7 text-stone-600">
-              Explore authentic clothing and accessories directly from our MySQL retail inventory.
-              Discover timeless essentials, verified stock, and premier brands.
-            </p>
+              <p className="mt-5 max-w-lg leading-7 text-stone-600">
+                Explore authentic clothing and accessories directly from our MySQL retail inventory.
+                Discover timeless essentials, verified stock, and premier brands.
+              </p>
 
-            <div className="mt-7 flex flex-wrap items-center gap-4">
-              <a
-                href="#products"
-                className="inline-flex rounded-full bg-stone-900 px-7 py-3 font-semibold text-white shadow hover:bg-amber-700 transition"
-              >
-                Shop Collection
-              </a>
-              <a
-                href="#cart"
-                className="inline-flex rounded-full border border-stone-300 bg-white px-6 py-3 font-semibold text-stone-800 hover:border-stone-900 transition"
-              >
-                View Cart ({cartCount})
-              </a>
+              <div className="mt-8 flex flex-wrap gap-4">
+                <a
+                  href="#products"
+                  className="rounded-full bg-stone-900 px-7 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-amber-700 transition"
+                >
+                  Shop Collection
+                </a>
+                <a
+                  href="#cart"
+                  className="rounded-full border border-stone-300 bg-white px-7 py-3.5 text-sm font-semibold text-stone-900 shadow-xs hover:border-stone-900 hover:bg-stone-50 transition"
+                >
+                  View Cart ({cartCount})
+                </a>
+              </div>
             </div>
-          </div>
 
-          <div className="overflow-hidden rounded-3xl bg-stone-200 shadow-md">
-            <img
-              src="https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1200&q=85"
-              alt="Clothing collection in a fashion store"
-              className="h-72 w-full object-cover sm:h-96"
-            />
-          </div>
-        </section>
+            <div className="overflow-hidden rounded-3xl bg-stone-200 shadow-md">
+              <img
+                src="https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1200&q=85"
+                alt="Clothing collection in a fashion store"
+                className="h-72 w-full object-cover sm:h-96"
+              />
+            </div>
+          </section>
+        )}
 
         {/* Product catalogue */}
         <section
@@ -403,6 +405,9 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
                   onAddToCart={handleAddToCart}
                   isEmployee={isEmployee}
                   onAdjustStock={handleUpdateStock}
+                  onEditVariant={(prod, variant) =>
+                    setEditingVariantProduct({ product: prod, variant })
+                  }
                 />
               ))}
             </div>
@@ -426,199 +431,199 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
           )}
         </section>
 
-        {/* Shopping cart */}
-        <section
-          id="cart"
-          className="mx-auto max-w-7xl px-5 py-12"
-        >
-          <p className="text-sm font-bold uppercase tracking-widest text-amber-700">
-            Your selection
-          </p>
-          <h2 className="mt-2 text-3xl font-black">
-            Shopping Cart ({cartCount})
-          </h2>
+        {/* Shopping cart (Visible only to Customers and Guests, NOT Employees) */}
+        {!isEmployee && (
+          <section
+            id="cart"
+            className="mx-auto max-w-7xl px-5 py-12"
+          >
+            <p className="text-sm font-bold uppercase tracking-widest text-amber-700">
+              Your selection
+            </p>
+            <h2 className="mt-2 text-3xl font-black">
+              Shopping Cart ({cartCount})
+            </h2>
 
-          {cart.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white p-10 text-center">
-              <p className="text-lg font-semibold">
-                Your cart is empty
-              </p>
-              <p className="mt-2 text-stone-600">
-                Add some products from our collection to get started.
-              </p>
-              <a
-                href="#products"
-                className="mt-5 inline-block rounded-full bg-stone-900 px-6 py-3 font-semibold text-white hover:bg-amber-700 transition"
-              >
-                Browse Products
-              </a>
-            </div>
-          ) : (
-            <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_320px]">
-              <div className="space-y-4">
-                {cart.map((item) => (
-                  <article
-                    key={item.cartKey}
-                    className="flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-4 sm:flex-row sm:items-center shadow-xs"
-                  >
-                    <div className="h-28 w-24 shrink-0 overflow-hidden rounded-xl bg-stone-100">
-                      {item.image ? (
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-stone-400 text-xs">
-                          No image
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {item.brand && (
-                          <span className="text-xs font-bold uppercase text-stone-900">
-                            {item.brand}
-                          </span>
-                        )}
-                        <span className="text-xs font-semibold uppercase text-amber-700">
-                          {item.category}
-                        </span>
-                      </div>
-
-                      <h3 className="mt-1 font-bold text-stone-900">{item.name}</h3>
-
-                      {item.selectedColorSize && (
-                        <p className="mt-0.5 text-xs font-medium text-stone-500">
-                          Option: <span className="font-semibold text-stone-700">{item.selectedColorSize}</span>
-                        </p>
-                      )}
-
-                      <p className="mt-1 text-sm text-stone-600">
-                        ₹{Number(item.price).toLocaleString("en-IN")} each
-                      </p>
-
-                      <p className="mt-2 font-bold text-stone-900">
-                        Subtotal: ₹
-                        {(Number(item.price) * item.quantity).toLocaleString("en-IN")}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex items-center rounded-full border border-stone-300 bg-stone-50">
-                        <button
-                          type="button"
-                          aria-label={`Decrease ${item.name} quantity`}
-                          onClick={() => changeQuantity(item.cartKey, -1)}
-                          className="px-3 py-2 hover:bg-stone-200 rounded-l-full transition"
-                        >
-                          −
-                        </button>
-
-                        <span className="min-w-8 text-center font-semibold text-sm">
-                          {item.quantity}
-                        </span>
-
-                        <button
-                          type="button"
-                          aria-label={`Increase ${item.name} quantity`}
-                          onClick={() => changeQuantity(item.cartKey, 1)}
-                          className="px-3 py-2 hover:bg-stone-200 rounded-r-full transition"
-                        >
-                          +
-                        </button>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => removeFromCart(item.cartKey)}
-                        className="text-sm font-semibold text-red-600 hover:text-red-800 transition"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </article>
-                ))}
+            {cart.length === 0 ? (
+              <div className="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white p-10 text-center">
+                <p className="text-lg font-semibold">
+                  Your cart is empty
+                </p>
+                <p className="mt-2 text-stone-600">
+                  Add some products from our collection to get started.
+                </p>
+                <a
+                  href="#products"
+                  className="mt-5 inline-block rounded-full bg-stone-900 px-6 py-3 font-semibold text-white hover:bg-amber-700 transition"
+                >
+                  Browse Products
+                </a>
               </div>
-
-              {/* Order summary */}
-              <aside className="h-fit rounded-2xl border border-stone-200 bg-white p-6 shadow-xs">
-                <h3 className="text-xl font-bold">Order Summary</h3>
-
-                <div className="mt-5 flex justify-between gap-3 text-stone-600">
-                  <span>Total items</span>
-                  <span className="font-semibold">{cartCount}</span>
-                </div>
-
-                <div className="mt-3 flex justify-between gap-3 text-stone-600">
-                  <span>Subtotal</span>
-                  <span className="font-semibold">₹{cartTotal.toLocaleString("en-IN")}</span>
-                </div>
-
-                {/* Staff Exclusive 20% Discount Row */}
-                {isEmployee && (
-                  <div className="mt-2 flex items-center justify-between gap-2 text-xs">
-                    <span className="text-amber-800 font-semibold flex items-center gap-1">
-                      <span>👔 Staff Discount (20%):</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setStaffDiscountActive(!staffDiscountActive)}
-                      className={`rounded-md px-2 py-0.5 text-[10px] font-bold transition ${
-                        staffDiscountActive
-                          ? "bg-emerald-600 text-white"
-                          : "border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
-                      }`}
+            ) : (
+              <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_320px]">
+                <div className="space-y-4">
+                  {cart.map((item) => (
+                    <article
+                      key={item.cartKey}
+                      className="flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-4 sm:flex-row sm:items-center shadow-xs"
                     >
-                      {staffDiscountActive ? "-₹" + staffDiscount.toLocaleString("en-IN") + " (Active)" : "Apply 20%"}
-                    </button>
-                  </div>
-                )}
+                      <div className="h-28 w-24 shrink-0 overflow-hidden rounded-xl bg-stone-100">
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-stone-400 text-xs">
+                            No image
+                          </div>
+                        )}
+                      </div>
 
-                <div className="mt-4 border-t border-stone-200 pt-4">
-                  <div className="flex justify-between gap-3 text-lg font-black">
-                    <span>Total</span>
-                    <span className="text-stone-900">
-                      ₹{finalCartTotal.toLocaleString("en-IN")}
-                    </span>
-                  </div>
-                  {staffDiscount > 0 && (
-                    <p className="mt-1 text-xs font-semibold text-emerald-700">
-                      You saved ₹{staffDiscount.toLocaleString("en-IN")} with Employee Staff Discount!
-                    </p>
-                  )}
-                  <p className="mt-1.5 text-xs text-stone-500">
-                    Direct from MySQL retail database inventory.
-                  </p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {item.brand && (
+                            <span className="text-xs font-bold uppercase text-stone-900">
+                              {item.brand}
+                            </span>
+                          )}
+                          <span className="text-xs font-semibold uppercase text-amber-700">
+                            {item.category}
+                          </span>
+                        </div>
+
+                        <h3 className="mt-1 font-bold text-stone-900">{item.name}</h3>
+
+                        {item.selectedColorSize && (
+                          <p className="mt-0.5 text-xs font-medium text-stone-500">
+                            Option: <span className="font-semibold text-stone-700">{item.selectedColorSize}</span>
+                          </p>
+                        )}
+
+                        <p className="mt-1 text-sm text-stone-600">
+                          ₹{Number(item.price).toLocaleString("en-IN")} each
+                        </p>
+
+                        <p className="mt-2 font-bold text-stone-900">
+                          Subtotal: ₹
+                          {(Number(item.price) * item.quantity).toLocaleString("en-IN")}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center rounded-full border border-stone-300 bg-stone-50">
+                          <button
+                            type="button"
+                            aria-label={`Decrease ${item.name} quantity`}
+                            onClick={() => changeQuantity(item.cartKey, -1)}
+                            className="px-3 py-2 hover:bg-stone-200 rounded-l-full transition cursor-pointer"
+                          >
+                            −
+                          </button>
+
+                          <span className="min-w-8 text-center font-semibold text-sm">
+                            {item.quantity}
+                          </span>
+
+                          <button
+                            type="button"
+                            aria-label={`Increase ${item.name} quantity`}
+                            onClick={() => changeQuantity(item.cartKey, 1)}
+                            className="px-3 py-2 hover:bg-stone-200 rounded-r-full transition cursor-pointer"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => removeFromCart(item.cartKey)}
+                          className="text-sm font-semibold text-red-600 hover:text-red-800 transition cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </article>
+                  ))}
                 </div>
 
-                {/* Customer / Staff Address Preview */}
-                {currentUser ? (
-                  <div className="mt-5 rounded-xl border border-stone-200 bg-stone-50 p-3.5 text-xs">
-                    <div className="flex items-center justify-between text-stone-500 font-bold uppercase tracking-wider mb-1">
-                      <span>{isEmployee ? "Staff Member Verification" : "Delivery Details"}</span>
+                {/* Order summary */}
+                <aside className="h-fit rounded-2xl border border-stone-200 bg-white p-6 shadow-xs">
+                  <h3 className="text-xl font-bold">Order Summary</h3>
+
+                  <div className="mt-5 flex justify-between gap-3 text-stone-600">
+                    <span>Total items</span>
+                    <span className="font-semibold">{cartCount}</span>
+                  </div>
+
+                  <div className="mt-3 flex justify-between gap-3 text-stone-600">
+                    <span>Subtotal</span>
+                    <span className="font-semibold">₹{cartTotal.toLocaleString("en-IN")}</span>
+                  </div>
+
+                  <div className="mt-4 border-t border-stone-200 pt-4">
+                    <div className="flex justify-between gap-3 text-lg font-black">
+                      <span>Total</span>
+                      <span className="text-stone-900">
+                        ₹{cartTotal.toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-xs text-stone-500">
+                      Direct from MySQL retail database inventory.
+                    </p>
+                  </div>
+
+                  {/* Customer / Guest Delivery details */}
+                  {currentUser ? (
+                    <div className="mt-5 rounded-xl border border-stone-200 bg-stone-50 p-3.5 text-xs">
+                      <div className="flex items-center justify-between text-stone-500 font-bold uppercase tracking-wider mb-1">
+                        <span>Delivery Details</span>
+                        <button
+                          type="button"
+                          onClick={onNavigateToAuth}
+                          className="text-[10px] text-amber-700 hover:underline cursor-pointer"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                      <p className="font-bold text-stone-900">{currentUser.name}</p>
+                      <p className="text-stone-600">{currentUser.mobile_no || currentUser.mobile}</p>
+                      <p className="mt-1 text-stone-600 leading-snug">
+                        {[
+                          currentUser.house_no,
+                          currentUser.street,
+                          currentUser.area,
+                          currentUser.city,
+                          currentUser.state,
+                          currentUser.pincode,
+                        ]
+                          .filter(Boolean)
+                          .join(", ") || "Standard Customer Address"}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-xl border border-dashed border-amber-300 bg-amber-50/60 p-3 text-xs text-amber-900">
+                      <p className="font-semibold">Have a Customer Account?</p>
+                      <p className="mt-0.5 text-amber-800 text-[11px]">
+                        Sign in to save your address details and track orders.
+                      </p>
                       <button
                         type="button"
                         onClick={onNavigateToAuth}
-                        className="text-[10px] text-amber-700 hover:underline"
+                        className="mt-2 font-bold text-amber-900 underline hover:text-stone-900 cursor-pointer"
                       >
-                        Edit
+                        Sign In / Register Customer →
                       </button>
                     </div>
-                    <p className="font-bold text-stone-900">
-                      {currentUser.name}{" "}
-                      {isEmployee && (
-                        <span className="text-amber-800 font-normal">
-                          ({currentUser.emp_role})
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-stone-600">{currentUser.mobile_no || currentUser.mobile}</p>
-                    <p className="mt-1 text-stone-600 leading-snug">
-                      {isEmployee
-                        ? `Assigned Branch: ${currentUser.branch_name} (Branch #${currentUser.branch_id})`
-                        : [
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const recipient = currentUser ? currentUser.name : "Valued Customer";
+                      const address = currentUser
+                        ? [
                             currentUser.house_no,
                             currentUser.street,
                             currentUser.area,
@@ -627,61 +632,28 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
                             currentUser.pincode,
                           ]
                             .filter(Boolean)
-                            .join(", ")}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="mt-4 rounded-xl border border-dashed border-amber-300 bg-amber-50/60 p-3 text-xs text-amber-900">
-                    <p className="font-semibold">Have a Customer Account?</p>
-                    <p className="mt-0.5 text-amber-800 text-[11px]">
-                      Sign in to save your address details and track orders.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={onNavigateToAuth}
-                      className="mt-2 font-bold text-amber-900 underline hover:text-stone-900"
-                    >
-                      Sign In / Register Customer →
-                    </button>
-                  </div>
-                )}
+                            .join(", ") || "Saved Customer Address"
+                        : "Standard Delivery Address";
+                      alert(`Order confirmed for ${recipient}!\nDelivery: ${address}\nTotal Amount: ₹${cartTotal.toLocaleString("en-IN")}`);
+                    }}
+                    className="mt-5 w-full rounded-full bg-stone-900 px-5 py-3 font-semibold text-white hover:bg-amber-700 transition cursor-pointer"
+                  >
+                    Proceed to Checkout
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    const recipient = currentUser ? currentUser.name : "Valued Customer";
-                    const address = currentUser
-                      ? isEmployee
-                        ? `Staff Member Pickup at ${currentUser.branch_name}`
-                        : [
-                            currentUser.house_no,
-                            currentUser.street,
-                            currentUser.area,
-                            currentUser.city,
-                            currentUser.state,
-                            currentUser.pincode,
-                          ]
-                            .filter(Boolean)
-                            .join(", ")
-                      : "Standard Address";
-                    alert(`Order confirmed for ${recipient}!\nDelivery: ${address}\nTotal Amount: ₹${finalCartTotal.toLocaleString("en-IN")}${staffDiscount > 0 ? " (Includes 20% Staff Discount)" : ""}`);
-                  }}
-                  className="mt-5 w-full rounded-full bg-stone-900 px-5 py-3 font-semibold text-white hover:bg-amber-700 transition"
-                >
-                  Proceed to Checkout
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setCart([])}
+                    className="mt-3 w-full rounded-full border border-stone-300 px-5 py-3 font-semibold hover:bg-stone-100 transition cursor-pointer"
+                  >
+                    Clear Cart
+                  </button>
+                </aside>
+              </div>
+            )}
+          </section>
+        )}
 
-                <button
-                  type="button"
-                  onClick={() => setCart([])}
-                  className="mt-3 w-full rounded-full border border-stone-300 px-5 py-3 font-semibold hover:bg-stone-100 transition"
-                >
-                  Clear Cart
-                </button>
-              </aside>
-            </div>
-          )}
-        </section>
       </main>
 
       {/* Staff Exclusive Floating Portal Trigger (Visible only to employees) */}
@@ -706,6 +678,44 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
           onUpdateStock={handleUpdateStock}
           onApplyStaffDiscount={(active) => setStaffDiscountActive(active)}
           staffDiscountActive={staffDiscountActive}
+          onProductCreated={loadData}
+        />
+      )}
+
+      {/* Edit Product Variant Modal (invokes sp_update_product_variant) */}
+      {editingVariantProduct && (
+        <EditVariantModal
+          isOpen={Boolean(editingVariantProduct)}
+          onClose={() => setEditingVariantProduct(null)}
+          product={editingVariantProduct.product}
+          initialVariant={editingVariantProduct.variant}
+          onVariantUpdated={async (updated) => {
+            // Instantly update product in local state so price & variant size change immediately
+            setProducts((prev) =>
+              prev.map((p) => {
+                if (p.id === updated.productId) {
+                  const updatedVariants = (p.variants || []).map((v) =>
+                    v.variant_id === updated.variant_id
+                      ? {
+                          ...v,
+                          color_size: updated.color_size,
+                          selling_price: updated.selling_price,
+                          is_active: updated.is_active,
+                        }
+                      : v
+                  );
+                  return {
+                    ...p,
+                    variants: updatedVariants,
+                    price: updated.selling_price || p.price,
+                  };
+                }
+                return p;
+              })
+            );
+            // Refresh catalog from MySQL database
+            await loadData();
+          }}
         />
       )}
 

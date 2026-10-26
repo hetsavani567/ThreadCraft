@@ -46,3 +46,15 @@ export const fetchProductById = async (id) => {
     const fallback = fallbackProducts.find((p) => String(p.id) === String(id));
     return fallback || null;
 };
+
+export const addProductWithVariant = async (data) => {
+    const result = await productModel.createProductWithVariant(data);
+    const createdProduct = await productModel.getProductById(result.productId);
+    return formatProduct(createdProduct);
+};
+
+export const updateProductVariant = async (variantId, data) => {
+    return await productModel.updateProductVariant(variantId, data);
+};
+
+
