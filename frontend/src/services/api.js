@@ -1,15 +1,103 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
-export async function apiRequest(path, options = {}) {
+const TOKEN_KEY = "threadcraft_access_token";
+const REFRESH_TOKEN_KEY = "threadcraft_refresh_token";
+const SESSION_KEY = "threadcraft_session_id";
+
+export function getAccessToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function getRefreshToken() {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export function getSessionId() {
+  return localStorage.getItem(SESSION_KEY);
+}
+
+export function saveAuthTokens({ accessToken, refreshToken, sessionId }) {
+  if (accessToken) localStorage.setItem(TOKEN_KEY, accessToken);
+  if (refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  if (sessionId) localStorage.setItem(SESSION_KEY, sessionId);
+}
+
+export function clearAuthTokens() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(SESSION_KEY);
+}
+
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+function onRefreshed(token) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+export async function apiRequest(path, options = {}, isRetry = false) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const token = getAccessToken();
+
+  const headers = {
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE_URL}${normalizedPath}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
+    credentials: "include",
+    headers,
   });
+
+  // Handle Token Expiry & Auto-Refresh
+  if (response.status === 401 && !isRetry && !path.includes("/auth/login") && !path.includes("/auth/refresh")) {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        try {
+          const refreshRes = await fetch(`${API_BASE_URL}/auth/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ refreshToken }),
+          });
+          const refreshData = await refreshRes.json();
+          if (refreshRes.ok && refreshData.accessToken) {
+            saveAuthTokens({
+              accessToken: refreshData.accessToken,
+              refreshToken: refreshData.refreshToken,
+            });
+            onRefreshed(refreshData.accessToken);
+          } else {
+            clearAuthTokens();
+          }
+        } catch {
+          clearAuthTokens();
+        } finally {
+          isRefreshing = false;
+        }
+      }
+
+      // Wait for refresh to complete and retry original request
+      return new Promise((resolve) => {
+        refreshSubscribers.push((newToken) => {
+          if (newToken) {
+            resolve(apiRequest(path, options, true));
+          } else {
+            resolve(response.json());
+          }
+        });
+      });
+    }
+  }
 
   const contentType = response.headers.get("content-type");
   const data = contentType?.includes("application/json")
@@ -22,7 +110,10 @@ export async function apiRequest(path, options = {}) {
         ? data.message
         : data;
 
-    throw new Error(message || `Request failed: ${response.status}`);
+    const error = new Error(message || `Request failed: ${response.status}`);
+    error.status = response.status;
+    error.data = data;
+    throw error;
   }
 
   return data;
@@ -115,3 +206,96 @@ export async function syncCustomer(customerData) {
     body: JSON.stringify(customerData),
   });
 }
+
+// ----------------- Authentication & Session APIs ----------------- //
+
+export async function loginUser(credentials) {
+  const data = await apiRequest("/auth/login", {
+    method: "POST",
+    body: JSON.stringify(credentials),
+  });
+  if (data.accessToken) {
+    saveAuthTokens({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      sessionId: data.sessionId,
+    });
+  }
+  return data;
+}
+
+export async function registerUser(userData) {
+  const data = await apiRequest("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(userData),
+  });
+  if (data.accessToken) {
+    saveAuthTokens({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      sessionId: data.sessionId,
+    });
+  }
+  return data;
+}
+
+export async function continueWithGoogle(payload) {
+  const data = await apiRequest("/auth/google", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (data.accessToken) {
+    saveAuthTokens({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      sessionId: data.sessionId,
+    });
+  }
+  return data;
+}
+
+export async function fetchGoogleAuthUrl() {
+  const data = await apiRequest("/auth/google/url");
+  return data.url;
+}
+
+export async function logoutUser() {
+  const sessionId = getSessionId();
+  const refreshToken = getRefreshToken();
+  try {
+    await apiRequest("/auth/logout", {
+      method: "POST",
+      body: JSON.stringify({ sessionId, refreshToken }),
+    });
+  } catch (err) {
+    console.warn("Logout request completed with notice:", err);
+  } finally {
+    clearAuthTokens();
+  }
+}
+
+export async function logoutAllDevices() {
+  try {
+    await apiRequest("/auth/logout-all", {
+      method: "POST",
+    });
+  } finally {
+    clearAuthTokens();
+  }
+}
+
+export async function fetchCurrentUser() {
+  return apiRequest("/auth/me");
+}
+
+export async function fetchUserSessions() {
+  return apiRequest("/auth/sessions");
+}
+
+export async function revokeUserSession(sessionId) {
+  return apiRequest(`/auth/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
+}
+
+

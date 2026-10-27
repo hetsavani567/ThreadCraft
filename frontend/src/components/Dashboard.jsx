@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { apiRequest, fetchProducts, fetchCategories } from "../services/api";
 import Navbar from "./Navbar.jsx";
+import ProductCard from "./ProductCard.jsx";
 import CategoryScrollView from "./CategoryScrollView.jsx";
 import Footer from "./Footer.jsx";
 import EmployeePortal from "./EmployeePortal.jsx";
@@ -14,8 +15,8 @@ function Dashboard({
   onNavigateToAuth,
   onLogout,
   onNavigateToOrders,
-  initialCategoryFilter,
-  initialBrandFilter,
+  // initialCategoryFilter,
+  // initialBrandFilter,
   onClearInitialFilters,
 }) {
   const [products, setProducts] = useState([]);
@@ -130,33 +131,22 @@ function Dashboard({
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
   }, [loadData]);
 
-  // Listen for initial filter props from breadcrumb links
-  useEffect(() => {
-    if (initialCategoryFilter) {
-      setSelectedCategory(initialCategoryFilter);
-      setSelectedBrand("All");
-      // Scroll to products
-      setTimeout(() => {
-        const el = document.getElementById("products");
-        if (el) el.scrollIntoView({ behavior: "smooth" });
-      }, 100);
-    }
-  }, [initialCategoryFilter]);
-
-  useEffect(() => {
-    if (initialBrandFilter) {
-      setSelectedBrand(initialBrandFilter);
-      setSelectedCategory("All");
-      // Scroll to products
-      setTimeout(() => {
-        const el = document.getElementById("products");
-        if (el) el.scrollIntoView({ behavior: "smooth" });
-      }, 100);
-    }
-  }, [initialBrandFilter]);
+  // // Listen for initial filter props from breadcrumb links
+  // useEffect(() => {
+  //   if (initialBrandFilter) {
+  //     setSelectedBrand(initialBrandFilter);
+  //     setSelectedCategory("All");
+  //     // Scroll to products
+  //     setTimeout(() => {
+  //       const el = document.getElementById("products");
+  //       if (el) el.scrollIntoView({ behavior: "smooth" });
+  //     }, 100);
+  //   }
+  // }, [initialBrandFilter]);
 
   // Synchronize hash navigation for #payment
   useEffect(() => {
@@ -173,6 +163,50 @@ function Dashboard({
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
+
+  // Track visibility of Shop section and Cart section to float/hide bottom cart button
+  const [isShopVisible, setIsShopVisible] = useState(false);
+  const [isCartVisible, setIsCartVisible] = useState(false);
+
+  useEffect(() => {
+    const shopEl = document.getElementById("products");
+    const cartEl = document.getElementById("cart");
+
+    if (!shopEl) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.target.id === "products") {
+            setIsShopVisible(entry.isIntersecting);
+          } else if (entry.target.id === "cart") {
+            setIsCartVisible(entry.isIntersecting);
+          }
+        });
+      },
+      {
+        threshold: 0.05,
+      }
+    );
+
+    observer.observe(shopEl);
+    if (cartEl) observer.observe(cartEl);
+
+    return () => observer.disconnect();
+  }, [isLoading, products.length]);
+
+  // Smooth scroll to cart section with navbar offset
+  function scrollToCart(e) {
+    if (e) e.preventDefault();
+    const el = document.getElementById("cart");
+    if (el) {
+      const header = document.querySelector("header");
+      const navbarHeight = header ? header.offsetHeight : 61;
+      const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+      window.history.pushState(null, "", "#cart");
+    }
+  }
 
   // Add a product or increase its quantity in cart
   function handleAddToCart(product) {
@@ -352,17 +386,7 @@ function Dashboard({
                 </a>
                 <a
                   href="#cart"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    const el = document.getElementById("cart");
-                    if (el) {
-                      const header = document.querySelector("header");
-                      const navbarHeight = header ? header.offsetHeight : 61;
-                      const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
-                      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
-                      window.history.pushState(null, "", "#cart");
-                    }
-                  }}
+                  onClick={scrollToCart}
                   className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 backdrop-blur-md px-7 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-white/20 hover:border-white transition cursor-pointer"
                 >
                   <span>View Cart ({cartCount})</span>
@@ -498,44 +522,65 @@ function Dashboard({
 
           {/* Products List / Loading / Error states */}
           {isLoading ? (
-            <div className="mt-8 space-y-8">
-              {[1, 2].map((catIdx) => (
-                <div
-                  key={catIdx}
-                  className="rounded-3xl border border-stone-200/80 bg-white/70 p-6 shadow-xs"
-                >
-                  <div className="flex items-center justify-between border-b border-stone-100 pb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-stone-200 animate-pulse" />
-                      <div>
-                        <div className="h-6 w-32 rounded bg-stone-200 animate-pulse" />
-                        <div className="mt-1.5 h-3.5 w-48 rounded bg-stone-200 animate-pulse" />
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="h-9 w-9 rounded-full bg-stone-200 animate-pulse" />
-                      <div className="h-9 w-9 rounded-full bg-stone-200 animate-pulse" />
-                    </div>
-                  </div>
-                  <div className="mt-4 flex gap-4 overflow-hidden pt-2">
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <div
-                        key={n}
-                        className="w-[220px] sm:w-[240px] shrink-0 animate-pulse rounded-2xl border border-stone-200 bg-white p-3.5 shadow-xs"
-                      >
-                        <div className="h-40 sm:h-44 w-full rounded-xl bg-stone-200" />
-                        <div className="mt-3 h-4 w-3/4 rounded bg-stone-200" />
-                        <div className="mt-2 h-3 w-full rounded bg-stone-200" />
-                        <div className="mt-3 flex items-center justify-between">
-                          <div className="h-5 w-16 rounded bg-stone-200" />
-                          <div className="h-7 w-16 rounded-full bg-stone-200" />
+            selectedCategory === "All" ? (
+              /* Horizontal Loading Skeleton */
+              <div className="mt-8 space-y-8">
+                {[1, 2].map((catIdx) => (
+                  <div
+                    key={catIdx}
+                    className="rounded-3xl border border-stone-200/80 bg-white/70 p-6 shadow-xs"
+                  >
+                    <div className="flex items-center justify-between border-b border-stone-100 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-stone-200 animate-pulse" />
+                        <div>
+                          <div className="h-6 w-32 rounded bg-stone-200 animate-pulse" />
+                          <div className="mt-1.5 h-3.5 w-48 rounded bg-stone-200 animate-pulse" />
                         </div>
                       </div>
-                    ))}
+                      <div className="flex gap-2">
+                        <div className="h-9 w-9 rounded-full bg-stone-200 animate-pulse" />
+                        <div className="h-9 w-9 rounded-full bg-stone-200 animate-pulse" />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex gap-4 overflow-hidden pt-2">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <div
+                          key={n}
+                          className="w-[220px] sm:w-[240px] shrink-0 animate-pulse rounded-2xl border border-stone-200 bg-white p-3.5 shadow-xs"
+                        >
+                          <div className="h-40 sm:h-44 w-full rounded-xl bg-stone-200" />
+                          <div className="mt-3 h-4 w-3/4 rounded bg-stone-200" />
+                          <div className="mt-2 h-3 w-full rounded bg-stone-200" />
+                          <div className="mt-3 flex items-center justify-between">
+                            <div className="h-5 w-16 rounded bg-stone-200" />
+                            <div className="h-7 w-16 rounded-full bg-stone-200" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              /* Grid Loading Skeleton */
+              <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                  <div
+                    key={n}
+                    className="animate-pulse rounded-2xl border border-stone-200 bg-white p-3.5 shadow-xs"
+                  >
+                    <div className="h-40 sm:h-44 w-full rounded-xl bg-stone-200" />
+                    <div className="mt-3 h-4 w-3/4 rounded bg-stone-200" />
+                    <div className="mt-2 h-3 w-full rounded bg-stone-200" />
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="h-5 w-16 rounded bg-stone-200" />
+                      <div className="h-7 w-16 rounded-full bg-stone-200" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           ) : error ? (
             <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-red-900">
               <svg
@@ -563,7 +608,63 @@ function Dashboard({
                 </button>
               </div>
             </div>
-          ) : displayCategoryNames.length > 0 ? (
+          ) : filteredProducts.length === 0 ? (
+            <div className="mt-8 rounded-2xl bg-white p-10 text-center border border-stone-200">
+              <h3 className="text-xl font-bold">No products found</h3>
+              <p className="mt-2 text-stone-600">
+                Try another search term or select another category.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setSelectedCategory("All");
+                }}
+                className="mt-4 rounded-full bg-stone-900 px-5 py-2.5 text-white hover:bg-amber-700 transition cursor-pointer"
+              >
+                Clear filters
+              </button>
+            </div>
+          ) : selectedCategory !== "All" ? (
+            /* Specific Category Selected: RENDER IN GRID FORMAT */
+            <div className="mt-6">
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200/80 bg-white px-5 py-3.5 shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse" />
+                  <p className="text-sm font-bold text-stone-800">
+                    Showing <span className="text-amber-800 font-black">{selectedCategory}</span> products in Grid View
+                  </p>
+                  <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-bold text-stone-600 border border-stone-200">
+                    {filteredProducts.length} {filteredProducts.length === 1 ? "item" : "items"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory("All")}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 hover:text-amber-900 transition cursor-pointer"
+                >
+                  <span>← Switch to All Categories (Horizontal View)</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onAddToCart={handleAddToCart}
+                    isEmployee={isEmployee}
+                    onAdjustStock={handleUpdateStock}
+                    onEditVariant={(prod, variant) =>
+                      setEditingVariantProduct({ product: prod, variant })
+                    }
+                    onSelectCategory={(cat) => setSelectedCategory(cat)}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* "All" Category Selected: RENDER HORIZONTALLY PER CATEGORY */
             <div className="mt-4 space-y-6">
               {displayCategoryNames.map((catName) => (
                 <CategoryScrollView
@@ -576,27 +677,9 @@ function Dashboard({
                   onEditVariant={(prod, variant) =>
                     setEditingVariantProduct({ product: prod, variant })
                   }
+                  onSelectCategory={(cat) => setSelectedCategory(cat)}
                 />
               ))}
-            </div>
-          ) : (
-            <div className="mt-8 rounded-2xl bg-white p-10 text-center border border-stone-200">
-              <h3 className="text-xl font-bold">No products found</h3>
-              <p className="mt-2 text-stone-600">
-                Try another search term or select another category.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setSelectedCategory("All");
-                  setSelectedBrand("All");
-                  if (onClearInitialFilters) onClearInitialFilters();
-                }}
-                className="mt-4 rounded-full bg-stone-900 px-5 py-2.5 text-white hover:bg-amber-700 transition cursor-pointer"
-              >
-                Clear filters
-              </button>
             </div>
           )}
         </section>
@@ -817,6 +900,75 @@ function Dashboard({
         )}
 
       </main>
+
+      {/* Floating Bottom Center Cart Icon (Floats when Shop section is open, hides below screen otherwise) */}
+      {!isEmployee && (
+        <div
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 transition-all duration-500 ease-in-out ${
+            isShopVisible && !isCartVisible
+              ? "translate-y-0 opacity-100 pointer-events-auto"
+              : "translate-y-28 opacity-0 pointer-events-none"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={scrollToCart}
+            aria-label={`View Shopping Cart with ${cartCount} items`}
+            className="group flex items-center gap-3.5 rounded-full bg-stone-950/95 px-6 py-3.5 text-white shadow-2xl ring-1 ring-white/20 backdrop-blur-xl hover:bg-stone-900 hover:ring-amber-500/50 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
+          >
+            {/* Cart Icon & Count Badge */}
+            <div className="relative flex items-center justify-center">
+              <svg
+                className="h-5 w-5 text-amber-400 transition-transform duration-300 group-hover:scale-110"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                />
+              </svg>
+
+              <span
+                className={`absolute -top-2 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-black shadow-md transition-transform ${
+                  cartCount > 0
+                    ? "bg-amber-500 text-stone-950 scale-100"
+                    : "bg-stone-700 text-stone-300 scale-90"
+                }`}
+              >
+                {cartCount}
+              </span>
+            </div>
+
+            {/* Label & Details */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold tracking-wide text-white">
+                {cartCount > 0 ? "View Cart" : "Cart"}
+              </span>
+
+              {cartCount > 0 && (
+                <span className="rounded-full bg-amber-500/20 border border-amber-500/30 px-2.5 py-0.5 text-xs font-bold text-amber-300">
+                  ₹{cartTotal.toLocaleString("en-IN")}
+                </span>
+              )}
+            </div>
+
+            {/* Down Chevron indicating scroll to cart */}
+            <svg
+              className="h-4 w-4 text-stone-400 transition-transform duration-300 group-hover:translate-y-0.5 group-hover:text-amber-400"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.5}
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5m7.5 7.5V3" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Staff Exclusive Floating Portal Trigger (Visible only to employees) */}
       {isEmployee && (

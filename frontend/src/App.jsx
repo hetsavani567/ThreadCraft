@@ -3,6 +3,7 @@ import Dashboard from "./components/Dashboard.jsx";
 import ProductDetail from "./components/ProductDetail.jsx";
 import AuthPage from "./components/AuthPage.jsx";
 import OrdersHistory from "./components/OrdersHistory.jsx";
+import { logoutUser, fetchCurrentUser, getAccessToken } from "./services/api.js";
 
 function App() {
   const [currentView, setCurrentView] = useState("store"); // "store" | "auth" | "orders" | "product"
@@ -19,6 +20,25 @@ function App() {
     }
   });
 
+  // Verify active session with backend on load
+  useEffect(() => {
+    const token = getAccessToken();
+    if (token) {
+      fetchCurrentUser()
+        .then((res) => {
+          if (res?.success && res.user) {
+            setCurrentUser(res.user);
+            localStorage.setItem("threadcraft_customer", JSON.stringify(res.user));
+          }
+        })
+        .catch(() => {
+          // Token or session expired/revoked
+          console.warn("Session check returned inactive, continuing as guest");
+        });
+    }
+  }, []);
+
+  // Handle URL hash navigation (e.g. #login, #signup, #auth, #orders, #tracking)
   // URL hash navigation
   useEffect(() => {
     function handleHashChange() {
@@ -67,7 +87,12 @@ function App() {
     }
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    try {
+      await logoutUser();
+    } catch (e) {
+      console.warn("Error during logout:", e);
+    }
     setCurrentUser(null);
     try {
       localStorage.removeItem("threadcraft_customer");
