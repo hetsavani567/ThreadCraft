@@ -5,6 +5,8 @@ import ProductCard from "./ProductCard.jsx";
 import Footer from "./Footer.jsx";
 import EmployeePortal from "./EmployeePortal.jsx";
 import EditVariantModal from "./EditVariantModal.jsx";
+import HeroImageSlider from "./HeroImageSlider.jsx";
+import { BANNER_SLIDES } from "../data/bannerSlides.js";
 import PaymentPage from "./PaymentPage.jsx";
 
 function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders }) {
@@ -24,6 +26,29 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders
     message: "Connecting to MySQL database...",
     database: ""
   });
+
+  // Persistent Banner Slides State (editable via Staff Portal Banner Manager)
+  const [bannerSlides, setBannerSlides] = useState(() => {
+    try {
+      const saved = localStorage.getItem("threadcraft_banner_slides");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn("Could not load banner slides from localStorage", e);
+    }
+    return BANNER_SLIDES;
+  });
+
+  function handleUpdateBannerSlides(newSlides) {
+    setBannerSlides(newSlides);
+    try {
+      localStorage.setItem("threadcraft_banner_slides", JSON.stringify(newSlides));
+    } catch (e) {
+      console.warn("Could not save banner slides to localStorage", e);
+    }
+  }
 
   const isEmployee = currentUser?.role === "employee";
 
@@ -260,13 +285,7 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-3xl bg-stone-200 shadow-md">
-              <img
-                src="https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1200&q=85"
-                alt="Clothing collection in a fashion store"
-                className="h-72 w-full object-cover sm:h-96"
-              />
-            </div>
+            <HeroImageSlider slides={bannerSlides} />
           </section>
         )}
 
@@ -694,6 +713,8 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders
           onApplyStaffDiscount={(active) => setStaffDiscountActive(active)}
           staffDiscountActive={staffDiscountActive}
           onProductCreated={loadData}
+          bannerSlides={bannerSlides}
+          onUpdateBannerSlides={handleUpdateBannerSlides}
         />
       )}
 
@@ -723,6 +744,7 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders
                     ...p,
                     variants: updatedVariants,
                     price: updated.selling_price || p.price,
+                    image: updated.image !== undefined ? updated.image : p.image,
                   };
                 }
                 return p;

@@ -82,21 +82,6 @@ function ProductCard({ product, onAddToCart, isEmployee, onAdjustStock, onEditVa
             )}
           </div>
 
-          {/* Staff Edit Variant Trigger Button */}
-          {isEmployee && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onEditVariant) onEditVariant(product, selectedVariant);
-              }}
-              className="absolute top-3 right-3 z-10 flex items-center gap-1 rounded-full bg-amber-500 hover:bg-amber-400 text-stone-950 px-2.5 py-1 text-xs font-bold shadow-md transition transform hover:scale-105 active:scale-95 cursor-pointer"
-              title="Click to edit this variant using sp_update_product_variant"
-            >
-              <span>✏️</span>
-              <span>Edit Variant</span>
-            </button>
-          )}
 
           {/* Rating Badge */}
           {!isEmployee && product.rating && (

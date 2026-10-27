@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { updateProductVariant } from "../services/api";
+import { updateProductVariant, updateProduct } from "../services/api";
 
 function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantUpdated }) {
   if (!isOpen || !product) return null;
@@ -23,7 +23,7 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
   const activeVariant =
     variants.find((v) => v.variant_id === selectedVariantId) || variants[0];
 
-  // Form states
+  // Form states - Variant
   const [colorSize, setColorSize] = useState(activeVariant?.color_size || "");
   const [sellingPrice, setSellingPrice] = useState(
     activeVariant?.selling_price !== undefined ? String(activeVariant.selling_price) : ""
@@ -31,6 +31,10 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
   const [isActive, setIsActive] = useState(
     activeVariant?.is_active !== undefined ? Boolean(activeVariant.is_active) : true
   );
+
+  // Form states - Product Photo (Image URL: 1 URL per product, not per variant)
+  const [imageUrl, setImageUrl] = useState(product.image || "");
+  const [previewError, setPreviewError] = useState(false);
 
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,6 +52,12 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
       setSuccessMessage("");
     }
   }, [activeVariant?.variant_id]);
+
+  // Sync image URL whenever product changes
+  useEffect(() => {
+    setImageUrl(product.image || "");
+    setPreviewError(false);
+  }, [product.id, product.image]);
 
   async function handleUpdateSubmit(e) {
     e.preventDefault();
@@ -69,6 +79,19 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
       errors.selling_price = "Selling price cannot exceed ₹1,00,00,000.";
     }
 
+    // Optional Image URL format check
+    const trimmedImage = imageUrl.trim();
+    if (trimmedImage) {
+      try {
+        const parsedUrl = new URL(trimmedImage);
+        if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+          errors.image_url = "Image URL must start with http:// or https://";
+        }
+      } catch {
+        errors.image_url = "Invalid image URL format. Please enter a valid web URL.";
+      }
+    }
+
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
@@ -76,27 +99,44 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
 
     setIsSubmitting(true);
     try {
-      const payload = {
+      const variantPayload = {
         color_size: trimmedColor,
         selling_price: priceNum,
         is_active: isActive ? 1 : 0,
       };
 
-      const res = await updateProductVariant(activeVariant.variant_id, payload);
+      // 1. Update product photo if changed or provided (executes sp_update_product)
+      const imageToSave = trimmedImage || null;
+      let photoUpdated = false;
+      if (imageToSave !== (product.image || null)) {
+        await updateProduct(product.id, {
+          product_name: product.name,
+          base_price: product.price,
+          product_description: product.description,
+          image_url: imageToSave,
+        });
+        photoUpdated = true;
+      }
+
+      // 2. Update variant details (executes sp_update_product_variant)
+      await updateProductVariant(activeVariant.variant_id, variantPayload);
 
       setSuccessMessage(
-        `🎉 Variant #${activeVariant.variant_id} successfully updated using stored procedure "sp_update_product_variant"!`
+        photoUpdated
+          ? `🎉 Product photo updated via "sp_update_product" & Variant #${activeVariant.variant_id} updated via "sp_update_product_variant"!`
+          : `🎉 Variant #${activeVariant.variant_id} updated successfully via "sp_update_product_variant"!`
       );
 
       if (onVariantUpdated) {
         await onVariantUpdated({
           ...activeVariant,
-          ...payload,
+          ...variantPayload,
           productId: product.id,
+          image: imageToSave,
         });
       }
     } catch (err) {
-      setFormErrors({ submit: err.message || "Failed to update variant in database." });
+      setFormErrors({ submit: err.message || "Failed to save updates to MySQL database." });
     } finally {
       setIsSubmitting(false);
     }
@@ -113,13 +153,13 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold">Update Product Variant</h3>
+                <h3 className="text-lg font-bold">Update Product & Variant</h3>
                 <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-extrabold uppercase text-stone-950">
-                  PL/SQL Stored Procedure
+                  PL/SQL Procedures
                 </span>
               </div>
               <p className="text-xs text-stone-300 mt-0.5">
-                Target Table: <code className="text-amber-300">product_variant</code> (via <code>sp_update_product_variant</code>)
+                Procedures: <code className="text-amber-300">sp_update_product</code> (Photo) & <code className="text-amber-300">sp_update_product_variant</code>
               </p>
             </div>
           </div>
@@ -140,13 +180,20 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
         <div className="overflow-y-auto p-6 space-y-5">
           {/* Product Parent Info Card */}
           <div className="flex items-center gap-3.5 rounded-2xl border border-stone-200 bg-stone-50 p-3.5">
-            {product.image && (
-              <img
-                src={product.image}
-                alt={product.name}
-                className="h-16 w-16 rounded-xl object-cover border border-stone-200"
-              />
-            )}
+            <div className="relative h-16 w-16 shrink-0 rounded-xl overflow-hidden border border-stone-300 bg-stone-200 shadow-xs">
+              {imageUrl && !previewError ? (
+                <img
+                  src={imageUrl}
+                  alt={product.name}
+                  onError={() => setPreviewError(true)}
+                  className="h-full w-full object-cover transition"
+                />
+              ) : (
+                <div className="flex h-full w-full flex-col items-center justify-center text-stone-400 text-[10px]">
+                  <span>No image</span>
+                </div>
+              )}
+            </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 bg-stone-200 px-2 py-0.5 rounded">
@@ -158,6 +205,108 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
               <p className="text-xs text-stone-500">
                 Base Catalog Price: <strong className="text-stone-800">₹{Number(product.price).toLocaleString("en-IN")}</strong>
               </p>
+            </div>
+          </div>
+
+          {/* Product Photo URL Section (One photo per product, applies to all variants) */}
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                  <span>📸</span>
+                  <span>Product Photo URL</span>
+                </span>
+                <span className="rounded-full bg-amber-200 text-amber-900 text-[9px] font-extrabold uppercase px-2 py-0.5">
+                  1 Photo for all variants
+                </span>
+              </div>
+              <span className="text-[10px] text-amber-800 font-mono">
+                sp_update_product
+              </span>
+            </div>
+
+            <div className="relative">
+              <input
+                type="url"
+                placeholder="Enter web photo URL (e.g. https://images.unsplash.com/...)"
+                value={imageUrl}
+                onChange={(e) => {
+                  setImageUrl(e.target.value);
+                  setPreviewError(false);
+                  if (formErrors.image_url) {
+                    setFormErrors({ ...formErrors, image_url: null });
+                  }
+                }}
+                className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition pr-8 ${
+                  formErrors.image_url
+                    ? "border-red-500 ring-2 ring-red-100"
+                    : "border-stone-300 focus:border-amber-700"
+                }`}
+              />
+              {imageUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImageUrl("");
+                    setPreviewError(false);
+                  }}
+                  className="absolute right-2.5 top-2.5 text-xs text-stone-400 hover:text-stone-700 cursor-pointer"
+                  title="Clear photo URL"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {formErrors.image_url && (
+              <p className="text-[11px] font-semibold text-red-600">
+                {formErrors.image_url}
+              </p>
+            )}
+
+            {/* Quick Unsplash Samples for Testing */}
+            <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+              <span className="text-stone-500 font-medium">Quick sample:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setImageUrl("https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=700&q=80");
+                  setPreviewError(false);
+                }}
+                className="rounded-md bg-white border border-stone-200 px-2 py-0.5 text-stone-700 hover:border-amber-600 transition cursor-pointer"
+              >
+                👕 White T-Shirt
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setImageUrl("https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=700&q=80");
+                  setPreviewError(false);
+                }}
+                className="rounded-md bg-white border border-stone-200 px-2 py-0.5 text-stone-700 hover:border-amber-600 transition cursor-pointer"
+              >
+                🧥 Grey Hoodie
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setImageUrl("https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=700&q=80");
+                  setPreviewError(false);
+                }}
+                className="rounded-md bg-white border border-stone-200 px-2 py-0.5 text-stone-700 hover:border-amber-600 transition cursor-pointer"
+              >
+                👟 Red Sneaker
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setImageUrl("https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=700&q=80");
+                  setPreviewError(false);
+                }}
+                className="rounded-md bg-white border border-stone-200 px-2 py-0.5 text-stone-700 hover:border-amber-600 transition cursor-pointer"
+              >
+                🧢 Sports Cap
+              </button>
             </div>
           </div>
 
@@ -333,7 +482,7 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
                 ) : (
                   <>
                     <span>⚡</span>
-                    <span>Save & Update Variant</span>
+                    <span>Save Changes (Photo & Variant)</span>
                   </>
                 )}
               </button>

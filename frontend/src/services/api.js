@@ -60,6 +60,13 @@ export async function updateProductVariant(variantId, variantData) {
   });
 }
 
+export async function updateProduct(productId, productData) {
+  return apiRequest(`/products/${productId}`, {
+    method: "PUT",
+    body: JSON.stringify(productData),
+  });
+}
+
 export async function fetchHealth() {
   return apiRequest("/health");
 }
