@@ -1,8 +1,15 @@
 import { useState, useEffect } from "react";
 import { BANNER_SLIDES } from "../data/bannerSlides.js";
 
-function HeroImageSlider({ slides = BANNER_SLIDES, autoPlayInterval = 4000 }) {
+function HeroImageSlider({ slides = BANNER_SLIDES, autoPlayInterval = 4000, children }) {
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Keep currentIndex valid if slides count decreases
+  useEffect(() => {
+    if (currentIndex >= slides.length) {
+      setCurrentIndex(0);
+    }
+  }, [slides.length, currentIndex]);
 
   // Purely automatic continuous photo transition (No manual change controls)
   useEffect(() => {
@@ -18,13 +25,14 @@ function HeroImageSlider({ slides = BANNER_SLIDES, autoPlayInterval = 4000 }) {
   const activeSlide = slides[currentIndex] || slides[0];
 
   return (
-    <div
-      className="relative overflow-hidden rounded-3xl bg-stone-900 shadow-xl select-none"
+    <section
+      id="home"
+      className="relative flex min-h-[calc(100vh-61px)] h-[calc(100vh-61px)] min-h-[calc(100dvh-61px)] h-[calc(100dvh-61px)] items-center overflow-hidden bg-stone-950 select-none border-0 border-none outline-none scroll-mt-[65px]"
       role="region"
-      aria-label="Featured Collection Showcase"
+      aria-label="ThreadCraft Storefront Showcase"
     >
-      {/* Aspect Ratio Container */}
-      <div className="relative h-72 w-full overflow-hidden sm:h-96">
+      {/* Background Animated Photo Slides */}
+      <div className="absolute inset-0 z-0">
         {slides.map((slide, index) => {
           const isActive = index === currentIndex;
           return (
@@ -36,45 +44,71 @@ function HeroImageSlider({ slides = BANNER_SLIDES, autoPlayInterval = 4000 }) {
             >
               <img
                 src={slide.url}
-                alt={slide.title || "Collection visual"}
-                className={`h-full w-full object-cover transition-transform duration-6000 ease-out ${
+                alt={slide.title || "Background banner"}
+                className={`h-full w-full object-cover transition-transform duration-7000 ease-out ${
                   isActive ? "scale-105" : "scale-100"
                 }`}
                 loading={index === 0 ? "eager" : "lazy"}
               />
-              {/* Subtle Gradient Overlays */}
-              <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-stone-950/20 to-black/25" />
             </div>
           );
         })}
 
-        {/* Top Badges: Category Tag & Auto-play Slide Counter (Informational only, non-clickable) */}
-        <div className="absolute top-4 left-4 z-20 flex items-center gap-2 pointer-events-none">
-          {activeSlide?.tag && (
-            <span className="rounded-full bg-amber-500/90 backdrop-blur-md px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-stone-950 shadow-md">
-              {activeSlide.tag}
-            </span>
-          )}
-        </div>
-
-        <div className="absolute top-4 right-4 z-20 flex items-center gap-2 rounded-full bg-stone-900/60 backdrop-blur-md px-3 py-1 text-xs font-semibold text-white/90 shadow-md pointer-events-none">
-          <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span>
-            {String(currentIndex + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}
-          </span>
-        </div>
-
-        {/* Bottom Slide Caption & Info (Non-clickable) */}
-        <div className="absolute bottom-5 left-5 right-5 z-20 pointer-events-none">
-          <h3 className="text-lg font-bold text-white drop-shadow sm:text-xl transition-all duration-500">
-            {activeSlide?.title}
-          </h3>
-          <p className="mt-1 line-clamp-1 text-xs text-white/80 drop-shadow sm:text-sm">
-            {activeSlide?.subtitle}
-          </p>
-        </div>
+        {/* Cinematic Dual Gradient Overlays:
+            - Left-to-Right gradient: dark on left for ultra-crisp readable text, transparent towards right to showcase clothing photos
+            - Bottom gradient: smooth dark blend into the next section
+        */}
+        <div className="absolute inset-0 z-20 bg-gradient-to-r from-stone-950/95 via-stone-950/75 to-stone-950/30" />
+        <div className="absolute inset-0 z-20 bg-gradient-to-t from-stone-950 via-transparent to-stone-950/40" />
       </div>
-    </div>
+
+      {/* Foreground Content: Left-side Hero text */}
+      <div className="relative z-30 mx-auto max-w-7xl w-full px-5 py-16 sm:py-24">
+        {children}
+
+        {/* Current Slide Info Badge */}
+        {activeSlide && (
+          <div className="mt-8 inline-flex items-center gap-2.5 rounded-full bg-stone-900/60 backdrop-blur-md border border-white/10 px-4 py-1.5 text-xs text-stone-300 shadow-md">
+            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            {activeSlide.tag && (
+              <span className="font-bold text-amber-400 uppercase tracking-wider text-[11px]">
+                {activeSlide.tag}
+              </span>
+            )}
+            <span className="text-stone-500">•</span>
+            <span className="font-medium text-white">{activeSlide.title}</span>
+            <span className="text-stone-500">•</span>
+            <span className="text-[11px] font-mono text-stone-400">
+              {String(currentIndex + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Scroll Down Indicator into Lower Product Portion */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center">
+        <a
+          href="#products"
+          onClick={(e) => {
+            e.preventDefault();
+            const el = document.getElementById("products");
+            if (el) {
+              const header = document.querySelector("header");
+              const navbarHeight = header ? header.offsetHeight : 61;
+              const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+              window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+              window.history.pushState(null, "", "#products");
+            }
+          }}
+          className="flex flex-col items-center gap-1.5 text-xs font-semibold tracking-widest uppercase text-white/70 hover:text-amber-400 transition cursor-pointer"
+        >
+          <span>Shop Collection</span>
+          <svg className="h-4 w-4 animate-bounce text-amber-400" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        </a>
+      </div>
+    </section>
   );
 }
 

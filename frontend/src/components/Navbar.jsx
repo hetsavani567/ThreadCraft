@@ -8,13 +8,48 @@ function Navbar({
 }) {
   const isEmployee = currentUser?.role === "employee";
 
+  function handleHomeClick(e) {
+    if (!isEmployee) {
+      e.preventDefault();
+      if (window.location.hash) {
+        window.history.pushState(null, "", window.location.pathname);
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
+  function handleShopClick(e) {
+    e.preventDefault();
+    const el = document.getElementById("products");
+    if (el) {
+      const header = document.querySelector("header");
+      const navbarHeight = header ? header.offsetHeight : 61;
+      const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+      window.history.pushState(null, "", "#products");
+    }
+  }
+
+  function handleCartClick(e) {
+    e.preventDefault();
+    const el = document.getElementById("cart");
+    if (el) {
+      const header = document.querySelector("header");
+      const navbarHeight = header ? header.offsetHeight : 61;
+      const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+      window.history.pushState(null, "", "#cart");
+    }
+  }
+
   return (
-    <header className="sticky top-0 z-20 border-b border-stone-200 bg-white/95 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/95 backdrop-blur-md">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3.5">
         <div className="flex items-center gap-8">
           <a
-            href={isEmployee ? "#products" : "#home"}
-            className="text-2xl font-black tracking-tight text-stone-900"
+            href={isEmployee ? "#products" : "/"}
+            onClick={handleHomeClick}
+            className="text-2xl font-black tracking-tight text-stone-900 cursor-pointer"
           >
             THREAD<span className="text-amber-600"> & CO.</span>
           </a>
@@ -22,8 +57,20 @@ function Navbar({
           <div className="hidden items-center gap-6 text-sm font-medium text-stone-600 md:flex">
             {!isEmployee ? (
               <>
-                <a href="#home" className="hover:text-amber-700 transition">Home</a>
-                <a href="#products" className="hover:text-amber-700 transition">Shop</a>
+                <a
+                  href="/"
+                  onClick={handleHomeClick}
+                  className="hover:text-amber-700 transition cursor-pointer"
+                >
+                  Home
+                </a>
+                <a
+                  href="#products"
+                  onClick={handleShopClick}
+                  className="hover:text-amber-700 transition cursor-pointer"
+                >
+                  Shop
+                </a>
                 <a
                   href="#orders"
                   onClick={(e) => {
@@ -32,14 +79,26 @@ function Navbar({
                       onNavigateToOrders();
                     }
                   }}
-                  className="hover:text-amber-700 transition flex items-center gap-1"
+                  className="hover:text-amber-700 transition flex items-center gap-1 cursor-pointer"
                 >
                   Orders & Tracking
                 </a>
-                <a href="#cart" className="hover:text-amber-700 transition">Cart</a>
+                <a
+                  href="#cart"
+                  onClick={handleCartClick}
+                  className="hover:text-amber-700 transition cursor-pointer"
+                >
+                  Cart
+                </a>
               </>
             ) : (
-              <a href="#products" className="hover:text-amber-700 transition">Inventory & Products</a>
+              <a
+                href="#products"
+                onClick={handleShopClick}
+                className="hover:text-amber-700 transition cursor-pointer"
+              >
+                Inventory & Products
+              </a>
             )}
           </div>
         </div>
@@ -70,9 +129,8 @@ function Navbar({
                 title={isEmployee ? "Open Staff Portal" : "View user profile"}
               >
                 <span
-                  className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white ${
-                    isEmployee ? "bg-amber-600" : "bg-stone-900"
-                  }`}
+                  className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white ${isEmployee ? "bg-amber-600" : "bg-stone-900"
+                    }`}
                 >
                   {isEmployee ? "👔" : currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
                 </span>
