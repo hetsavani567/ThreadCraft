@@ -1,4 +1,27 @@
 import * as productService from "../services/product.service.js";
+import { appendFileSync, mkdirSync, existsSync } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const LOG_FILE = path.resolve(__dirname, "../../..", "database", "db_changes.sql");
+
+// Ensure database directory exists
+const logDir = path.dirname(LOG_FILE);
+if (!existsSync(logDir)) {
+    mkdirSync(logDir, { recursive: true });
+}
+
+function logDbChange(action, details) {
+    const timestamp = new Date().toISOString();
+    const entry = `-- [${timestamp}] ${action}: ${details}\n`;
+    try {
+        appendFileSync(LOG_FILE, entry);
+    } catch (err) {
+        console.warn("Could not write to db_changes.sql:", err.message);
+    }
+}
 
 export const getProducts = async (req, res, next) => {
     try {
@@ -127,6 +150,8 @@ export const createProduct = async (req, res, next) => {
             branch_id: Number(branch_id) || 1
         });
 
+        logDbChange("INSERT PRODUCT", `product_id=${newProduct.id}, name="${product_name.trim()}", category_id=${parsedCategoryId}, brand_id=${parsedBrandId}, base_price=${parsedBasePrice}, variant="${color_size.trim()}", selling_price=${parsedSellingPrice}, stock=${parsedStock}`);
+
         res.status(201).json({
             message: "Product and initial variant added successfully to database",
             product: newProduct
@@ -195,6 +220,8 @@ export const updateVariant = async (req, res, next) => {
             is_active: is_active !== undefined ? Boolean(is_active) : true
         });
 
+        logDbChange("UPDATE VARIANT", `variant_id=${parsedVariantId}, color_size="${color_size.trim()}", selling_price=${parsedPrice}, is_active=${is_active !== undefined ? Boolean(is_active) : true}`);
+
         res.json({
             message: "Product variant updated successfully using sp_update_product_variant",
             result
@@ -261,6 +288,8 @@ export const updateProduct = async (req, res, next) => {
             image_url: newImage || null
         });
 
+        logDbChange("UPDATE PRODUCT", `product_id=${parsedId}, name="${newName}", base_price=${newPrice}, description="${newDesc}"`);
+
         res.json({
             message: "Product updated successfully using sp_update_product",
             result,
@@ -286,5 +315,3 @@ export const updateProduct = async (req, res, next) => {
         });
     }
 };
-
-
