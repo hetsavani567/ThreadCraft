@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { fetchCustomerByEmail, syncCustomer } from "../services/api";
 
 function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) {
   const [mode, setMode] = useState("signin");
@@ -25,6 +26,8 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
 
   const demoUsers = {
     customer: { email: "customer@demo.com", password: "Customer123" },
+    rahul: { email: "rahul.mehta@example.com", password: "Customer123" },
+    priya: { email: "priya.shah@example.com", password: "Customer123" },
     employee: { email: "demo@thread.com", password: "Employee123" },
   };
 
@@ -57,7 +60,7 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
     setSuccessMessage("");
   }
 
-  function handleSignInSubmit(e) {
+  async function handleSignInSubmit(e) {
     e.preventDefault();
     const errors = {};
     const email = signInData.email.trim().toLowerCase();
@@ -73,16 +76,26 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
       return;
     }
 
-    // Demo behavior: the email domain decides the account type.
-    // Real authentication and employee authorization must be checked by the backend.
     const employee = isEmployeeEmail(email);
     const isDemoCustomer = email === demoUsers.customer.email && signInData.password === demoUsers.customer.password;
     const isDemoEmployee = email === demoUsers.employee.email && signInData.password === demoUsers.employee.password;
-    const name = isDemoCustomer
+    let name = isDemoCustomer
       ? "Demo Customer"
       : isDemoEmployee
         ? "Demo Employee"
         : email.split("@")[0].replace(/[._-]/g, " ");
+
+    let resolvedCustomer = null;
+    if (!employee) {
+      try {
+        resolvedCustomer = await fetchCustomerByEmail(email);
+        if (resolvedCustomer?.name) {
+          name = resolvedCustomer.name;
+        }
+      } catch (err) {
+        console.warn("Could not lookup customer from DB:", err);
+      }
+    }
 
     const user = employee
       ? {
@@ -97,20 +110,20 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
         }
       : {
           role: "customer",
-          cust_id: null,
-          name,
+          cust_id: resolvedCustomer?.cust_id || null,
+          name: resolvedCustomer?.name || name,
           email,
-          mobile_no: "",
-          house_no: "",
-          street: "",
-          area: "",
-          city: "",
-          state: "",
-          pincode: "",
+          mobile_no: resolvedCustomer?.mobile_no || "",
+          house_no: resolvedCustomer?.house_no || "",
+          street: resolvedCustomer?.street || "",
+          area: resolvedCustomer?.area || "",
+          city: resolvedCustomer?.city || "",
+          state: resolvedCustomer?.state || "",
+          pincode: resolvedCustomer?.pincode || "",
         };
 
     setSuccessMessage(
-      employee ? `Employee email detected. Welcome, ${name}!` : `Welcome, ${name}!`
+      employee ? `Employee email detected. Welcome, ${user.name}!` : `Welcome, ${user.name}!`
     );
     setFormErrors({});
     window.setTimeout(() => {
@@ -119,7 +132,7 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
     }, 700);
   }
 
-  function handleSignUpSubmit(e) {
+  async function handleSignUpSubmit(e) {
     e.preventDefault();
     const errors = {};
     const email = signUpData.email.trim().toLowerCase();
@@ -155,6 +168,26 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
       return;
     }
 
+    let resolvedCustomer = null;
+    if (!employee) {
+      try {
+        const res = await syncCustomer({
+          name: signUpData.name.trim(),
+          email,
+          mobile: signUpData.mobile.trim(),
+          house_no: signUpData.house_no.trim(),
+          street: signUpData.street.trim(),
+          area: signUpData.area.trim(),
+          city: signUpData.city.trim(),
+          state: signUpData.state.trim(),
+          pincode: signUpData.pincode.trim(),
+        });
+        resolvedCustomer = res?.customer;
+      } catch (err) {
+        console.warn("Could not sync customer to DB:", err);
+      }
+    }
+
     const branch = branches.find((item) => item.id === Number(signUpData.branch_id));
     const user = employee
       ? {
@@ -170,16 +203,16 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
         }
       : {
           role: "customer",
-          cust_id: null,
-          name: signUpData.name.trim(),
+          cust_id: resolvedCustomer?.cust_id || null,
+          name: resolvedCustomer?.name || signUpData.name.trim(),
           email,
-          mobile_no: signUpData.mobile.trim(),
-          house_no: signUpData.house_no.trim(),
-          street: signUpData.street.trim(),
-          area: signUpData.area.trim(),
-          city: signUpData.city.trim(),
-          state: signUpData.state.trim(),
-          pincode: signUpData.pincode.trim(),
+          mobile_no: resolvedCustomer?.mobile_no || signUpData.mobile.trim(),
+          house_no: resolvedCustomer?.house_no || signUpData.house_no.trim(),
+          street: resolvedCustomer?.street || signUpData.street.trim(),
+          area: resolvedCustomer?.area || signUpData.area.trim(),
+          city: resolvedCustomer?.city || signUpData.city.trim(),
+          state: resolvedCustomer?.state || signUpData.state.trim(),
+          pincode: resolvedCustomer?.pincode || signUpData.pincode.trim(),
         };
 
     setSuccessMessage(
@@ -325,26 +358,43 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
 
               <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
                 <p className="text-sm font-semibold text-gray-800">Try a demo account</p>
-                <p className="mt-1 text-xs text-gray-500">Choose an account to fill in the login details.</p>
+                <p className="mt-1 text-xs text-gray-500">Choose an account to test customer-specific order tracking:</p>
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <button
                     type="button"
                     onClick={() => useDemoAccount("customer")}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 text-left transition cursor-pointer"
                   >
-                    Use Customer Demo
+                    👤 <strong>Demo Customer</strong>
+                    <span className="block text-[11px] text-gray-400">customer@demo.com</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => useDemoAccount("rahul")}
+                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 text-left transition cursor-pointer"
+                  >
+                    👤 <strong>Rahul Mehta</strong>
+                    <span className="block text-[11px] text-gray-400">rahul.mehta@example.com (2 Orders)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => useDemoAccount("priya")}
+                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 text-left transition cursor-pointer"
+                  >
+                    👤 <strong>Priya Shah</strong>
+                    <span className="block text-[11px] text-gray-400">priya.shah@example.com (1 Order)</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => useDemoAccount("employee")}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 text-left transition cursor-pointer"
                   >
-                    Use Employee Demo
+                    👔 <strong>Employee Staff</strong>
+                    <span className="block text-[11px] text-gray-400">demo@thread.com</span>
                   </button>
                 </div>
-                <div className="mt-3 space-y-1 text-xs text-gray-600">
-                  <p><strong>Customer:</strong> customer@demo.com / Customer123</p>
-                  <p><strong>Employee:</strong> demo@thread.com / Employee123</p>
+                <div className="mt-3 space-y-1 text-[11px] text-gray-500 border-t border-gray-200 pt-2">
+                  <p>Customer passwords: <code>Customer123</code> • Staff password: <code>Employee123</code></p>
                 </div>
               </div>
               <p className="text-center text-xs text-gray-500">

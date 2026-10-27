@@ -22,6 +22,7 @@ function getStatusStepIndex(status) {
 function OrdersHistory({
   currentUser,
   onNavigateToStore,
+  onNavigateToAuth = null,
   initialSelectedOrderId = null,
   onOpenProductDetail = null,
 }) {
@@ -34,47 +35,78 @@ function OrdersHistory({
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
-  // Load orders from MySQL backend and merge with localStorage fallback
+  // Load orders strictly belonging to the currently logged-in customer
   const loadOrders = async () => {
+    // If no customer is logged in, or if logged in as an employee, clear orders and exit
+    if (!currentUser || currentUser.role === "employee") {
+      setOrders([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const userEmail = (currentUser?.email || "").trim().toLowerCase();
+    const userCustId = currentUser?.cust_id ? Number(currentUser.cust_id) : null;
+
+    if (!userEmail && !userCustId) {
+      setOrders([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     let backendOrders = [];
     try {
       const params = {};
-      if (currentUser?.cust_id) {
-        params.cust_id = currentUser.cust_id;
-      } else if (currentUser?.email && !currentUser.email.includes("@thread.com")) {
-        params.email = currentUser.email;
-      }
+      if (userCustId) params.cust_id = userCustId;
+      if (userEmail) params.email = userEmail;
+
       const data = await fetchOrders(params);
       if (Array.isArray(data)) {
-        backendOrders = data;
+        // Strict customer filter: only include orders that belong to the current customer
+        backendOrders = data.filter((o) => {
+          const ordEmail = (o.customer_email || "").trim().toLowerCase();
+          const ordCustId = o.cust_id ? Number(o.cust_id) : null;
+          const matchEmail = Boolean(userEmail && ordEmail && ordEmail === userEmail);
+          const matchCustId = Boolean(userCustId && ordCustId && ordCustId === userCustId);
+          return matchEmail || matchCustId;
+        });
       }
     } catch (err) {
       console.warn("Backend orders fetch error, falling back to local records:", err);
       setError("Note: Operating with local sync while connecting to database.");
     }
 
-    // Merge with any client-placed local orders stored in localStorage
+    // Merge with client-placed local orders stored in localStorage,
+    // ONLY for orders placed by THIS customer!
     try {
       const localSaved = localStorage.getItem("threadcraft_orders");
       if (localSaved) {
         const parsed = JSON.parse(localSaved);
         if (Array.isArray(parsed)) {
-          // Normalize local orders to match schema
-          const mappedLocal = parsed.map((lo, idx) => ({
+          // Strictly filter ONLY local orders matching current customer's email or cust_id
+          const customerLocalOrders = parsed.filter((lo) => {
+            const loEmail = (lo.customer_email || lo.email || lo.shipping?.email || "").trim().toLowerCase();
+            const loCustId = lo.cust_id ? Number(lo.cust_id) : null;
+            const matchEmail = Boolean(userEmail && loEmail && loEmail === userEmail);
+            const matchCustId = Boolean(userCustId && loCustId && loCustId === userCustId);
+            return matchEmail || matchCustId;
+          });
+
+          // Normalize customer local orders to match schema
+          const mappedLocal = customerLocalOrders.map((lo, idx) => ({
             order_id: lo.order_id || lo.orderId || `LOCAL-${idx + 1}`,
-            cust_id: lo.cust_id || currentUser?.cust_id || 1,
+            cust_id: lo.cust_id || userCustId || null,
             customer_name: lo.customer_name || lo.shipping?.fullName || currentUser?.name || "Customer",
-            customer_email: lo.customer_email || lo.shipping?.email || currentUser?.email || "customer@demo.com",
-            customer_mobile: lo.customer_mobile || lo.shipping?.mobile || "9876543210",
-            house_no: lo.house_no || lo.shipping?.houseNo || "",
-            street: lo.street || lo.shipping?.street || "",
-            area: lo.area || lo.shipping?.area || "",
-            city: lo.city || lo.shipping?.city || "Ahmedabad",
-            state: lo.state || lo.shipping?.state || "Gujarat",
-            pincode: lo.pincode || lo.shipping?.pincode || "380001",
+            customer_email: lo.customer_email || lo.shipping?.email || userEmail,
+            customer_mobile: lo.customer_mobile || lo.shipping?.mobile || currentUser?.mobile_no || "",
+            house_no: lo.house_no || lo.shipping?.houseNo || currentUser?.house_no || "",
+            street: lo.street || lo.shipping?.street || currentUser?.street || "",
+            area: lo.area || lo.shipping?.area || currentUser?.area || "",
+            city: lo.city || lo.shipping?.city || currentUser?.city || "Ahmedabad",
+            state: lo.state || lo.shipping?.state || currentUser?.state || "Gujarat",
+            pincode: lo.pincode || lo.shipping?.pincode || currentUser?.pincode || "380001",
             branch_id: lo.branch_id || 1,
             branch_name: lo.branch_name || "Surat Central Hub",
             branch_city: lo.branch_city || "Surat",
@@ -123,9 +155,11 @@ function OrdersHistory({
           (o) => String(o.order_id) === String(initialSelectedOrderId)
         );
         setSelectedOrderId(found ? found.order_id : backendOrders[0].order_id);
-      } else if (!selectedOrderId) {
+      } else if (!selectedOrderId || !backendOrders.some((o) => String(o.order_id) === String(selectedOrderId))) {
         setSelectedOrderId(backendOrders[0].order_id);
       }
+    } else {
+      setSelectedOrderId(null);
     }
   };
 
@@ -279,6 +313,112 @@ function OrdersHistory({
   const currentStep = selectedOrder ? getStatusStepIndex(selectedOrder.order_status) : 0;
   const isCancelled = (selectedOrder?.order_status || "").toLowerCase() === "cancelled";
 
+  const isCustomer = Boolean(
+    currentUser &&
+    currentUser.role !== "employee" &&
+    (currentUser.email || currentUser.cust_id)
+  );
+  const isEmployee = currentUser?.role === "employee";
+
+  // If visitor is not logged in as a customer, show an elegant authentication prompt
+  if (!isCustomer) {
+    return (
+      <div className="min-h-screen bg-stone-50/70 text-stone-900 pb-20">
+        {/* Top Header */}
+        <div className="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur-md">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onNavigateToStore}
+                className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition cursor-pointer"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                </svg>
+                <span>Back to Shop</span>
+              </button>
+              <div className="h-4 w-px bg-stone-300" />
+              <h1 className="text-lg font-black tracking-tight text-stone-900 sm:text-xl">
+                My Orders & Delivery Tracking
+              </h1>
+            </div>
+          </div>
+        </div>
+
+        {/* Auth Gate Card */}
+        <div className="mx-auto max-w-xl px-4 pt-16 text-center sm:px-6">
+          <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white p-8 sm:p-12 shadow-sm">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-700 text-3xl">
+              {isEmployee ? "👔" : "🔒"}
+            </div>
+
+            {isEmployee ? (
+              <>
+                <h2 className="mt-5 text-2xl font-black tracking-tight text-stone-900">
+                  Staff Account Detected
+                </h2>
+                <p className="mt-3 text-sm text-stone-600 leading-relaxed max-w-md mx-auto">
+                  You are signed in as <strong>{currentUser?.name || "Employee"}</strong>. Retail customer orders and live tracking are for customer accounts. Staff members manage branch orders in the Staff Terminal.
+                </p>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                  <button
+                    type="button"
+                    onClick={onNavigateToStore}
+                    className="rounded-full bg-stone-900 px-7 py-3 text-sm font-bold text-white shadow-md hover:bg-amber-700 transition cursor-pointer"
+                  >
+                    Back to Store Catalog
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="mt-5 text-2xl font-black tracking-tight text-stone-900 sm:text-3xl">
+                  Sign In to Track Your Orders
+                </h2>
+                <p className="mt-3 text-sm text-stone-600 leading-relaxed max-w-md mx-auto">
+                  For your privacy and security, live delivery tracking and order history are only displayed for the customer who placed the order.
+                </p>
+
+                <div className="mt-8 rounded-2xl border border-stone-100 bg-stone-50 p-5 text-left text-xs text-stone-600 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">✓</span>
+                    <span><strong>Verified Orders Only:</strong> View exclusively the orders placed by your account.</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">✓</span>
+                    <span><strong>Live Dispatch Milestones:</strong> Real-time courier tracking from packing to delivery.</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">✓</span>
+                    <span><strong>Official Tax Invoices:</strong> Print authentic retail cash memos anytime.</span>
+                  </div>
+                </div>
+
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                  <button
+                    type="button"
+                    onClick={onNavigateToAuth ? onNavigateToAuth : () => { window.location.hash = "#auth"; }}
+                    className="rounded-full bg-stone-900 px-7 py-3.5 text-sm font-bold text-white shadow-md hover:bg-amber-700 transition cursor-pointer"
+                  >
+                    Sign In to Your Account →
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onNavigateToStore}
+                    className="rounded-full border border-stone-300 bg-white px-6 py-3.5 text-sm font-semibold text-stone-700 hover:bg-stone-50 transition cursor-pointer"
+                  >
+                    Browse Catalog
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-stone-50/70 text-stone-900 pb-20">
       {/* Top Header / Breadcrumb */}
@@ -296,10 +436,15 @@ function OrdersHistory({
               <span>Back to Shop</span>
             </button>
             <div className="h-4 w-px bg-stone-300" />
-            <h1 className="text-lg font-black tracking-tight text-stone-900 sm:text-xl">
-              My Orders & Delivery Tracking
-            </h1>
-            <span className="hidden rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-900 sm:inline-flex">
+            <div>
+              <h1 className="text-lg font-black tracking-tight text-stone-900 sm:text-xl">
+                My Orders & Delivery Tracking
+              </h1>
+              <p className="text-[11px] text-stone-500">
+                Orders for <strong className="font-semibold text-stone-800">{currentUser?.name || "Customer"}</strong> ({currentUser?.email})
+              </p>
+            </div>
+            <span className="hidden rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-900 sm:inline-flex ml-2">
               {orders.length} {orders.length === 1 ? "Order" : "Orders"}
             </span>
           </div>
@@ -400,10 +545,10 @@ function OrdersHistory({
               <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-10 text-center">
                 <span className="text-3xl">🛍️</span>
                 <h3 className="mt-2 text-sm font-bold text-stone-900">No orders found</h3>
-                <p className="mt-1 text-xs text-stone-500">
+                <p className="mt-1 text-xs text-stone-500 max-w-xs mx-auto">
                   {searchQuery || filterStatus !== "All"
                     ? "Try adjusting your search query or filter tab."
-                    : "You haven't placed any orders yet."}
+                    : `No orders placed by ${currentUser?.name || currentUser?.email} yet.`}
                 </p>
                 <button
                   type="button"

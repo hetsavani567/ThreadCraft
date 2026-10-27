@@ -149,15 +149,27 @@ function PaymentPage({
 
       let createdId = `TC-${Math.floor(100000 + Math.random() * 900000)}`;
 
+      const effectiveCustId = currentUser?.cust_id || null;
+      const effectiveEmail = currentUser?.email || shippingAddress?.email || (currentUser ? `${currentUser.name.replace(/\s+/g, "").toLowerCase()}@customer.com` : "customer@demo.com");
+      const effectiveCustomerName = currentUser?.name || shippingAddress.fullName || "Customer";
+      const effectiveMobile = currentUser?.mobile_no || currentUser?.mobile || shippingAddress.mobile || "";
+
+      let backendOrderResult = null;
       try {
         const payload = {
-          cust_id: currentUser?.cust_id || null,
-          email: currentUser?.email || "customer@demo.com",
+          cust_id: effectiveCustId,
+          email: effectiveEmail,
+          name: effectiveCustomerName,
           branch_id: 1,
           discount: discountAmount,
           final_amount: finalTotal,
           paymentMethod: cleanPaymentMethod,
-          shipping: { ...shippingAddress },
+          shipping: { 
+            ...shippingAddress,
+            email: effectiveEmail,
+            fullName: effectiveCustomerName,
+            mobile: effectiveMobile,
+          },
           items: cart.map((c) => ({
             id: c.id,
             product_id: c.id,
@@ -173,6 +185,7 @@ function PaymentPage({
         const res = await createOrder(payload);
         if (res?.order?.order_id) {
           createdId = res.order.order_id;
+          backendOrderResult = res.order;
         }
       } catch (err) {
         console.warn("Could not save order directly to database, saving to local state:", err);
@@ -181,6 +194,16 @@ function PaymentPage({
       const orderData = {
         orderId: createdId,
         order_id: createdId,
+        cust_id: backendOrderResult?.cust_id || effectiveCustId,
+        customer_email: backendOrderResult?.customer_email || effectiveEmail,
+        customer_name: backendOrderResult?.customer_name || effectiveCustomerName,
+        customer_mobile: backendOrderResult?.customer_mobile || effectiveMobile,
+        house_no: shippingAddress.houseNo || currentUser?.house_no || "",
+        street: shippingAddress.street || currentUser?.street || "",
+        area: shippingAddress.area || currentUser?.area || "",
+        city: shippingAddress.city || currentUser?.city || "Ahmedabad",
+        state: shippingAddress.state || currentUser?.state || "Gujarat",
+        pincode: shippingAddress.pincode || currentUser?.pincode || "380001",
         amount: finalTotal,
         discount: discountAmount,
         paymentMethod: cleanPaymentMethod,
