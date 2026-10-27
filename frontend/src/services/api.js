@@ -92,3 +92,16 @@ export async function updateOrderStatus(orderId, status) {
   });
 }
 
+export async function fetchCustomerByEmail(email) {
+  if (!email) return null;
+  const qs = new URLSearchParams({ email }).toString();
+  return apiRequest(`/customers?${qs}`);
+}
+
+export async function syncCustomer(customerData) {
+  return apiRequest("/customers", {
+    method: "POST",
+    body: JSON.stringify(customerData),
+  });
+}
+

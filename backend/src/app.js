@@ -5,6 +5,7 @@ import healthRoutes from "./routes/health.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import brandRoutes from "./routes/brand.routes.js";
 import orderRoutes from "./routes/order.routes.js";
+import customerRoutes from "./routes/customer.routes.js";
 import { errorHandler, notFoundHandler } from "./middlewares/error.middleware.js";
 import { getRoot } from "./controllers/health.controller.js";
 
@@ -24,6 +25,7 @@ app.use(["/products", "/api/products"], productRoutes);
 app.use(["/categories", "/api/categories"], categoryRoutes);
 app.use(["/brands", "/api/brands"], brandRoutes);
 app.use(["/orders", "/api/orders"], orderRoutes);
+app.use(["/customers", "/api/customers"], customerRoutes);
 
 // Error Handling Middlewares
 app.use(notFoundHandler);

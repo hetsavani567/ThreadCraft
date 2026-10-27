@@ -63,13 +63,14 @@ export const getAllOrders = async ({ cust_id, email, status } = {}) => {
 
     const params = [];
 
-    if (cust_id) {
+    if (cust_id && email) {
+        query += " AND (o.cust_id = ? OR LOWER(TRIM(c.email)) = LOWER(TRIM(?)))";
+        params.push(cust_id, email);
+    } else if (cust_id) {
         query += " AND o.cust_id = ?";
         params.push(cust_id);
-    }
-
-    if (email) {
-        query += " AND LOWER(c.email) = LOWER(?)";
+    } else if (email) {
+        query += " AND LOWER(TRIM(c.email)) = LOWER(TRIM(?))";
         params.push(email);
     }
 

@@ -92,6 +92,7 @@ function App() {
       <OrdersHistory
         currentUser={currentUser}
         onNavigateToStore={navigateToStore}
+        onNavigateToAuth={navigateToAuth}
         initialSelectedOrderId={selectedOrderId}
       />
     );
