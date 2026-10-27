@@ -247,52 +247,73 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders
 
       <main>
         {/* Hero section (Hidden for Employees, visible to Guests and Customers) */}
+        {/* First Open Page: Hero section with full background photo animation */}
         {!isEmployee && (
-          <section
-            id="home"
-            className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-14 md:grid-cols-2 md:py-20"
-          >
-            <div>
-              <p className="text-sm font-bold uppercase tracking-[0.25em] text-amber-700">
+          <HeroImageSlider slides={bannerSlides} autoPlayInterval={4000}>
+            <div className="max-w-2xl">
+              <p className="text-xs sm:text-sm font-bold uppercase tracking-[0.25em] text-amber-400">
                 Everyday style, made simple
               </p>
 
-              <h1 className="mt-5 text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+              <h1 className="mt-4 text-4xl font-black leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl drop-shadow-md">
                 Find your
-                <span className="block text-amber-700">
+                <span className="block text-amber-500">
                   everyday look.
                 </span>
               </h1>
 
-              <p className="mt-5 max-w-lg leading-7 text-stone-600">
+              <p className="mt-5 max-w-lg text-base sm:text-lg leading-relaxed text-stone-200 drop-shadow-sm">
                 Explore authentic clothing and accessories directly from our MySQL retail inventory.
                 Discover timeless essentials, verified stock, and premier brands.
               </p>
 
-              <div className="mt-8 flex flex-wrap gap-4">
+              <div className="mt-8 flex flex-wrap items-center gap-4">
                 <a
                   href="#products"
-                  className="rounded-full bg-stone-900 px-7 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-amber-700 transition"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const el = document.getElementById("products");
+                    if (el) {
+                      const header = document.querySelector("header");
+                      const navbarHeight = header ? header.offsetHeight : 61;
+                      const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+                      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+                      window.history.pushState(null, "", "#products");
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-7 py-3.5 text-sm font-bold text-stone-950 shadow-lg hover:bg-amber-400 hover:scale-105 active:scale-95 transition cursor-pointer"
                 >
-                  Shop Collection
+                  <span>Shop Collection</span>
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5m7.5 7.5V3" />
+                  </svg>
                 </a>
                 <a
                   href="#cart"
-                  className="rounded-full border border-stone-300 bg-white px-7 py-3.5 text-sm font-semibold text-stone-900 shadow-xs hover:border-stone-900 hover:bg-stone-50 transition"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const el = document.getElementById("cart");
+                    if (el) {
+                      const header = document.querySelector("header");
+                      const navbarHeight = header ? header.offsetHeight : 61;
+                      const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+                      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+                      window.history.pushState(null, "", "#cart");
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 backdrop-blur-md px-7 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-white/20 hover:border-white transition cursor-pointer"
                 >
-                  View Cart ({cartCount})
+                  <span>View Cart ({cartCount})</span>
                 </a>
               </div>
             </div>
-
-            <HeroImageSlider slides={bannerSlides} />
-          </section>
+          </HeroImageSlider>
         )}
 
-        {/* Product catalogue */}
+        {/* Product catalogue - cleanly aligns right under sticky navbar with no black hero gap */}
         <section
           id="products"
-          className="mx-auto max-w-7xl px-5 py-12"
+          className="mx-auto max-w-7xl px-5 scroll-mt-[62px] pt-10 sm:pt-14 pb-16"
         >
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
