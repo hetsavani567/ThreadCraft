@@ -1,0 +1,9 @@
+-- ============================================================
+-- ThreadCraft Database Change Log
+-- ============================================================
+-- This file automatically logs all database mutations
+-- (INSERT, UPDATE, DELETE) performed through the backend API.
+-- Each entry is timestamped and describes the operation.
+-- ============================================================
+-- Format: [ISO_TIMESTAMP] ACTION: details
+-- ============================================================

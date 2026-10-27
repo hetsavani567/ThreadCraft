@@ -28,14 +28,17 @@ function ProductCard({ product, onAddToCart, isEmployee, onAdjustStock, onEditVa
   function handleCardClick() {
     if (isEmployee && onEditVariant) {
       onEditVariant(product, selectedVariant);
+    } else {
+      // Navigate to product detail page via hash
+      window.location.hash = `#product?id=${product.id}`;
     }
   }
 
   return (
     <article
       onClick={handleCardClick}
-      className={`group flex flex-col justify-between overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
-        isEmployee ? "cursor-pointer ring-1 hover:ring-2 hover:ring-amber-500/70" : ""
+      className={`group flex flex-col justify-between overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer ${
+        isEmployee ? "ring-1 hover:ring-2 hover:ring-amber-500/70" : ""
       }`}
     >
       <div>
