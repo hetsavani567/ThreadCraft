@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import Dashboard from "./components/Dashboard.jsx";
 import AuthPage from "./components/AuthPage.jsx";
+import OrdersHistory from "./components/OrdersHistory.jsx";
 
 function App() {
-  const [currentView, setCurrentView] = useState("store"); // "store" | "auth"
+  const [currentView, setCurrentView] = useState("store"); // "store" | "auth" | "orders"
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem("threadcraft_customer");
@@ -13,12 +15,19 @@ function App() {
     }
   });
 
-  // Handle URL hash navigation (e.g. #login, #signup, #auth)
+  // Handle URL hash navigation (e.g. #login, #signup, #auth, #orders, #tracking)
   useEffect(() => {
     function handleHashChange() {
       const hash = window.location.hash.toLowerCase();
       if (hash === "#login" || hash === "#signup" || hash === "#auth") {
         setCurrentView("auth");
+      } else if (hash === "#orders" || hash === "#tracking" || hash.startsWith("#orders")) {
+        // Extract order ID if present (e.g., #orders?id=3)
+        const idMatch = window.location.hash.match(/[?&]id=([^&]+)/i);
+        if (idMatch && idMatch[1]) {
+          setSelectedOrderId(idMatch[1]);
+        }
+        setCurrentView("orders");
       } else if (hash === "#home" || hash === "#products" || hash === "#cart" || hash === "#payment" || hash === "") {
         setCurrentView("store");
       }
@@ -57,6 +66,16 @@ function App() {
     window.location.hash = "#home";
   }
 
+  function navigateToOrders(orderId = null) {
+    if (orderId) {
+      setSelectedOrderId(orderId);
+      window.location.hash = `#orders?id=${orderId}`;
+    } else {
+      window.location.hash = "#orders";
+    }
+    setCurrentView("orders");
+  }
+
   if (currentView === "auth") {
     return (
       <AuthPage
@@ -68,11 +87,22 @@ function App() {
     );
   }
 
+  if (currentView === "orders") {
+    return (
+      <OrdersHistory
+        currentUser={currentUser}
+        onNavigateToStore={navigateToStore}
+        initialSelectedOrderId={selectedOrderId}
+      />
+    );
+  }
+
   return (
     <Dashboard
       currentUser={currentUser}
       onNavigateToAuth={navigateToAuth}
       onLogout={handleLogout}
+      onNavigateToOrders={navigateToOrders}
     />
   );
 }

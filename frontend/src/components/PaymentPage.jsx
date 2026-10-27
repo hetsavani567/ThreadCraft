@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { createOrder } from "../services/api";
+import RetailInvoice from "./RetailInvoice.jsx";
 
 function PaymentPage({
   cart = [],
@@ -7,9 +9,11 @@ function PaymentPage({
   onClose,
   onClearCart,
   onNavigateToAuth,
+  onViewOrders,
 }) {
   // Stepper / flow state: 'checkout' | 'processing' | 'success'
   const [checkoutStep, setCheckoutStep] = useState("checkout");
+  const [showRetailInvoice, setShowRetailInvoice] = useState(false);
 
   // Selected payment method tab
   const [paymentMethod, setPaymentMethod] = useState("card"); // 'card' | 'upi' | 'netbanking' | 'cod' | 'emi'
@@ -129,23 +133,57 @@ function PaymentPage({
 
     setCheckoutStep("processing");
 
-    // Simulate 1.6s payment gateway processing delay
-    setTimeout(() => {
-      const orderNumber = `TC-${Math.floor(100000 + Math.random() * 900000)}`;
+    // Submit order to backend & persist locally
+    (async () => {
+      const cleanPaymentMethod =
+        paymentMethod === "card"
+          ? `${getCardBrand()} ending in ${cardNumber.slice(-4) || "4242"}`
+          : paymentMethod === "upi"
+          ? `UPI (${selectedUpiApp.toUpperCase()})`
+          : paymentMethod === "netbanking"
+          ? `Net Banking (${selectedBank.toUpperCase()})`
+          : "Cash on Delivery (COD)";
+
       const deliveryDate = new Date();
       deliveryDate.setDate(deliveryDate.getDate() + 3);
 
+      let createdId = `TC-${Math.floor(100000 + Math.random() * 900000)}`;
+
+      try {
+        const payload = {
+          cust_id: currentUser?.cust_id || null,
+          email: currentUser?.email || "customer@demo.com",
+          branch_id: 1,
+          discount: discountAmount,
+          final_amount: finalTotal,
+          paymentMethod: cleanPaymentMethod,
+          shipping: { ...shippingAddress },
+          items: cart.map((c) => ({
+            id: c.id,
+            product_id: c.id,
+            variant_id: c.selectedVariant?.variant_id || null,
+            quantity: c.quantity || 1,
+            price: Number(c.price) || 0,
+            name: c.name,
+            color_size: c.selectedColorSize || "Standard",
+            image: c.image,
+          })),
+        };
+
+        const res = await createOrder(payload);
+        if (res?.order?.order_id) {
+          createdId = res.order.order_id;
+        }
+      } catch (err) {
+        console.warn("Could not save order directly to database, saving to local state:", err);
+      }
+
       const orderData = {
-        orderId: orderNumber,
+        orderId: createdId,
+        order_id: createdId,
         amount: finalTotal,
-        paymentMethod:
-          paymentMethod === "card"
-            ? `${getCardBrand()} ending in ${cardNumber.slice(-4) || "4242"}`
-            : paymentMethod === "upi"
-            ? `UPI (${selectedUpiApp.toUpperCase()})`
-            : paymentMethod === "netbanking"
-            ? `Net Banking (${selectedBank.toUpperCase()})`
-            : "Cash on Delivery (COD)",
+        discount: discountAmount,
+        paymentMethod: cleanPaymentMethod,
         date: new Date().toLocaleDateString("en-IN", {
           day: "numeric",
           month: "short",
@@ -158,16 +196,25 @@ function PaymentPage({
         }),
         items: [...cart],
         shipping: { ...shippingAddress },
+        order_status: "Placed",
       };
+
+      // Persist to local storage
+      try {
+        const existing = JSON.parse(localStorage.getItem("threadcraft_orders") || "[]");
+        localStorage.setItem("threadcraft_orders", JSON.stringify([orderData, ...existing]));
+      } catch (e) {
+        console.warn("Could not save order to localStorage:", e);
+      }
 
       setConfirmedOrder(orderData);
       setCheckoutStep("success");
-    }, 1600);
+    })();
   }
 
-  // Print receipt simulation
+  // Print authentic retail receipt
   function handlePrintReceipt() {
-    window.print();
+    setShowRetailInvoice(true);
   }
 
   // Done shopping -> clear cart and return to catalog
@@ -284,24 +331,44 @@ function PaymentPage({
 
               {/* Action Buttons */}
               <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+                {onViewOrders && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onClearCart) onClearCart();
+                      onViewOrders(confirmedOrder.orderId);
+                    }}
+                    className="flex-1 rounded-full bg-amber-600 py-3.5 text-center font-bold text-sm text-white shadow-md hover:bg-amber-700 transition cursor-pointer"
+                  >
+                    Track Order & View History 📦
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleFinishAndReturn}
-                  className="flex-1 rounded-full bg-stone-900 py-3.5 text-center font-bold text-sm text-white shadow-md hover:bg-amber-700 transition cursor-pointer"
+                  className="flex-1 rounded-full bg-stone-900 py-3.5 text-center font-bold text-sm text-white shadow-md hover:bg-stone-800 transition cursor-pointer"
                 >
                   Continue Shopping
                 </button>
                 <button
                   type="button"
                   onClick={handlePrintReceipt}
-                  className="rounded-full border border-stone-300 px-6 py-3.5 font-semibold text-sm text-stone-700 hover:bg-stone-100 transition cursor-pointer"
+                  className="rounded-full border border-stone-300 px-5 py-3.5 font-semibold text-sm text-stone-700 hover:bg-stone-100 transition cursor-pointer"
                 >
-                  Print Receipt 🖨️
+                  Print 🖨️
                 </button>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Authentic Sharp Retail Bill Modal */}
+        {showRetailInvoice && confirmedOrder && (
+          <RetailInvoice
+            order={confirmedOrder}
+            onClose={() => setShowRetailInvoice(false)}
+          />
+        )}
       </div>
     );
   }
