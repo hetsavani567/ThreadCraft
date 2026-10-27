@@ -7,7 +7,7 @@ import EmployeePortal from "./EmployeePortal.jsx";
 import EditVariantModal from "./EditVariantModal.jsx";
 import PaymentPage from "./PaymentPage.jsx";
 
-function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
+function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders }) {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(["All"]);
   const [search, setSearch] = useState("");
@@ -201,6 +201,10 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
         }}
         onClearCart={() => setCart([])}
         onNavigateToAuth={onNavigateToAuth}
+        onViewOrders={(orderId) => {
+          setIsPaymentPageOpen(false);
+          if (onNavigateToOrders) onNavigateToOrders(orderId);
+        }}
       />
     );
   }
@@ -213,6 +217,7 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
         onNavigateToAuth={onNavigateToAuth}
         onLogout={onLogout}
         onOpenEmployeePortal={() => setIsEmployeePortalOpen(true)}
+        onNavigateToOrders={onNavigateToOrders}
       />
 
       <main>

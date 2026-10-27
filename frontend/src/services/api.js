@@ -64,3 +64,31 @@ export async function fetchHealth() {
   return apiRequest("/health");
 }
 
+export async function fetchOrders(params = {}) {
+  const query = new URLSearchParams();
+  if (params.cust_id) query.append("cust_id", params.cust_id);
+  if (params.email) query.append("email", params.email);
+  if (params.status && params.status !== "All") query.append("status", params.status);
+
+  const qs = query.toString();
+  return apiRequest(`/orders${qs ? `?${qs}` : ""}`);
+}
+
+export async function fetchOrderById(orderId) {
+  return apiRequest(`/orders/${orderId}`);
+}
+
+export async function createOrder(orderData) {
+  return apiRequest("/orders", {
+    method: "POST",
+    body: JSON.stringify(orderData),
+  });
+}
+
+export async function updateOrderStatus(orderId, status) {
+  return apiRequest(`/orders/${orderId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
