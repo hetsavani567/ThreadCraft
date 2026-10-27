@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-function ProductCard({ product, onAddToCart, isEmployee, onEditVariant }) {
+function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelectCategory }) {
   const [imgError, setImgError] = useState(false);
   const variants = product.variants && product.variants.length > 0 ? product.variants : [];
   
@@ -28,12 +28,17 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant }) {
   function handleCardClick() {
     if (isEmployee && onEditVariant) {
       onEditVariant(product, selectedVariant);
+    } else {
+      // Navigate to product detail page via hash
+      window.location.hash = `#product?id=${product.id}`;
     }
   }
 
   return (
     <article
       onClick={handleCardClick}
+      className={`group flex flex-col justify-between overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer ${
+        isEmployee ? "ring-1 hover:ring-2 hover:ring-amber-500/70" : ""
       className={`group flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${
         isEmployee ? "cursor-pointer ring-1 hover:ring-2 hover:ring-amber-500/70" : ""
       }`}
@@ -76,9 +81,21 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant }) {
               </span>
             )}
             {product.category && (
-              <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-stone-700 shadow-xs backdrop-blur-sm">
+              <button
+                type="button"
+                onClick={(e) => {
+                  if (onSelectCategory) {
+                    e.stopPropagation();
+                    onSelectCategory(product.category);
+                  }
+                }}
+                className={`rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-stone-700 shadow-xs backdrop-blur-sm transition ${
+                  onSelectCategory ? "hover:bg-amber-100 hover:text-amber-900 cursor-pointer" : ""
+                }`}
+                title={onSelectCategory ? `View ${product.category} in Grid View` : product.category}
+              >
                 {product.category}
-              </span>
+              </button>
             )}
           </div>
 

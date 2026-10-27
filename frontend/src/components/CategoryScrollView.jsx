@@ -40,6 +40,7 @@ function CategoryScrollView({
   isEmployee,
   onAdjustStock,
   onEditVariant,
+  onSelectCategory,
 }) {
   const scrollContainerRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -112,8 +113,21 @@ function CategoryScrollView({
           </div>
         </div>
 
-        {/* Scroll Navigation Arrows */}
+        {/* Scroll Navigation Arrows & View in Grid */}
         <div className="flex items-center gap-2">
+          {onSelectCategory && (
+            <button
+              type="button"
+              onClick={() => onSelectCategory(categoryName)}
+              className="mr-1 inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-700 shadow-xs hover:border-amber-600 hover:text-amber-800 transition cursor-pointer"
+            >
+              <span>View in Grid</span>
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => handleScroll("left")}
@@ -166,6 +180,7 @@ function CategoryScrollView({
                 isEmployee={isEmployee}
                 onAdjustStock={onAdjustStock}
                 onEditVariant={onEditVariant}
+                onSelectCategory={onSelectCategory}
               />
             </div>
           ))}

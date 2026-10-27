@@ -137,6 +137,10 @@ export async function fetchBrands() {
   return apiRequest("/brands");
 }
 
+export async function fetchProductById(productId) {
+  return apiRequest(`/products/${productId}`);
+}
+
 export async function createProduct(productData) {
   return apiRequest("/products", {
     method: "POST",
