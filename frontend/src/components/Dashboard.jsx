@@ -5,6 +5,7 @@ import ProductCard from "./ProductCard.jsx";
 import Footer from "./Footer.jsx";
 import EmployeePortal from "./EmployeePortal.jsx";
 import EditVariantModal from "./EditVariantModal.jsx";
+import PaymentPage from "./PaymentPage.jsx";
 
 function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
   const [products, setProducts] = useState([]);
@@ -17,6 +18,7 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
   const [isEmployeePortalOpen, setIsEmployeePortalOpen] = useState(false);
   const [editingVariantProduct, setEditingVariantProduct] = useState(null);
   const [staffDiscountActive, setStaffDiscountActive] = useState(false);
+  const [isPaymentPageOpen, setIsPaymentPageOpen] = useState(false);
   const [apiStatus, setApiStatus] = useState({
     ok: false,
     message: "Connecting to MySQL database...",
@@ -97,6 +99,22 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
     loadData();
   }, [loadData]);
 
+  // Synchronize hash navigation for #payment
+  useEffect(() => {
+    function handleHashChange() {
+      const hash = window.location.hash.toLowerCase();
+      if (hash === "#payment") {
+        setIsPaymentPageOpen(true);
+      } else if (hash === "#home" || hash === "#products" || hash === "#cart") {
+        setIsPaymentPageOpen(false);
+      }
+    }
+
+    handleHashChange();
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
   // Add a product or increase its quantity in cart
   function handleAddToCart(product) {
     const variantId = product.selectedVariant?.variant_id || "default";
@@ -170,6 +188,22 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
 
     return matchesSearch && matchesCategory;
   });
+
+  if (isPaymentPageOpen) {
+    return (
+      <PaymentPage
+        cart={cart}
+        cartTotal={cartTotal}
+        currentUser={currentUser}
+        onClose={() => {
+          setIsPaymentPageOpen(false);
+          window.location.hash = "#cart";
+        }}
+        onClearCart={() => setCart([])}
+        onNavigateToAuth={onNavigateToAuth}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900">
@@ -605,24 +639,16 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout }) {
                   <button
                     type="button"
                     onClick={() => {
-                      const recipient = currentUser ? currentUser.name : "Valued Customer";
-                      const address = currentUser
-                        ? [
-                            currentUser.house_no,
-                            currentUser.street,
-                            currentUser.area,
-                            currentUser.city,
-                            currentUser.state,
-                            currentUser.pincode,
-                          ]
-                            .filter(Boolean)
-                            .join(", ") || "Saved Customer Address"
-                        : "Standard Delivery Address";
-                      alert(`Order confirmed for ${recipient}!\nDelivery: ${address}\nTotal Amount: ₹${cartTotal.toLocaleString("en-IN")}`);
+                      if (cart.length === 0) {
+                        alert("Your cart is empty. Please add items before proceeding to payment.");
+                        return;
+                      }
+                      setIsPaymentPageOpen(true);
+                      window.location.hash = "#payment";
                     }}
                     className="mt-5 w-full rounded-full bg-stone-900 px-5 py-3 font-semibold text-white hover:bg-amber-700 transition cursor-pointer"
                   >
-                    Proceed to Checkout
+                    Proceed to Payment →
                   </button>
 
                   <button

@@ -19,7 +19,7 @@ function App() {
       const hash = window.location.hash.toLowerCase();
       if (hash === "#login" || hash === "#signup" || hash === "#auth") {
         setCurrentView("auth");
-      } else if (hash === "#home" || hash === "#products" || hash === "#cart" || hash === "") {
+      } else if (hash === "#home" || hash === "#products" || hash === "#cart" || hash === "#payment" || hash === "") {
         setCurrentView("store");
       }
     }
