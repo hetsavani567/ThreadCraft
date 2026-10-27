@@ -1,2 +1,49 @@
-
 @import "tailwindcss";
+
+/* ------------------------------------------------------------- */
+/* AUTHENTIC RETAIL BILL PRINT STYLING - ZERO ROUNDED CORNERS   */
+/* ------------------------------------------------------------- */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+  }
+
+  /* Hide web UI chrome, navigation, buttons, and floating modals */
+  header,
+  nav,
+  footer,
+  button,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Ensure retail bill prints clean & sharp without margins or cartoonish borders */
+  #retail-invoice-print-area {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  #retail-invoice-print-area * {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 8mm 12mm;
+  }
+}

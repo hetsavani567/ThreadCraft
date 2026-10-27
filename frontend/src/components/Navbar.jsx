@@ -4,6 +4,7 @@ function Navbar({
   onNavigateToAuth,
   onLogout,
   onOpenEmployeePortal,
+  onNavigateToOrders,
 }) {
   const isEmployee = currentUser?.role === "employee";
 
@@ -23,6 +24,18 @@ function Navbar({
               <>
                 <a href="#home" className="hover:text-amber-700 transition">Home</a>
                 <a href="#products" className="hover:text-amber-700 transition">Shop</a>
+                <a
+                  href="#orders"
+                  onClick={(e) => {
+                    if (onNavigateToOrders) {
+                      e.preventDefault();
+                      onNavigateToOrders();
+                    }
+                  }}
+                  className="hover:text-amber-700 transition flex items-center gap-1"
+                >
+                  Orders & Tracking
+                </a>
                 <a href="#cart" className="hover:text-amber-700 transition">Cart</a>
               </>
             ) : (
@@ -32,6 +45,21 @@ function Navbar({
         </div>
 
         <div className="flex items-center gap-2.5">
+          {/* Quick Orders Button */}
+          {!isEmployee && (
+            <button
+              type="button"
+              onClick={onNavigateToOrders}
+              title="Track Orders"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:border-stone-400 hover:bg-stone-100 transition cursor-pointer"
+            >
+              <svg className="h-3.5 w-3.5 text-stone-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25V4.5A2.25 2.25 0 0012 2.25H4.5A2.25 2.25 0 002.25 4.5v9.75m9.75-9.75H4.5" />
+              </svg>
+              <span>Orders</span>
+            </button>
+          )}
+
           {/* User Profile Pill or Sign In Button */}
           {currentUser ? (
             <div className="flex items-center gap-2">
