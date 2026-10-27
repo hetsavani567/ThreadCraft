@@ -8,6 +8,8 @@ function App() {
   const [currentView, setCurrentView] = useState("store"); // "store" | "auth" | "orders" | "product"
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [selectedProductId, setSelectedProductId] = useState(null);
+  const [initialCategoryFilter, setInitialCategoryFilter] = useState(null);
+  const [initialBrandFilter, setInitialBrandFilter] = useState(null);
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem("threadcraft_customer");
@@ -20,26 +22,37 @@ function App() {
   // URL hash navigation
   useEffect(() => {
     function handleHashChange() {
-      const hash = window.location.hash.toLowerCase();
-      if (hash === "#login" || hash === "#signup" || hash === "#auth") {
+      const fullHash = window.location.hash || "";
+      const hashLower = fullHash.toLowerCase();
+
+      if (hashLower === "#login" || hashLower === "#signup" || hashLower === "#auth") {
         setCurrentView("auth");
-      } else if (hash === "#orders" || hash === "#tracking" || hash.startsWith("#orders")) {
-        const idMatch = window.location.hash.match(/[?&]id=([^&]+)/i);
+      } else if (hashLower === "#orders" || hashLower === "#tracking" || hashLower.startsWith("#orders")) {
+        const idMatch = fullHash.match(/[?&]id=([^&]+)/i);
         if (idMatch && idMatch[1]) {
           setSelectedOrderId(idMatch[1]);
         }
         setCurrentView("orders");
-      } else if (hash.startsWith("#product")) {
-        const idMatch = window.location.hash.match(/[?&]id=([^&]+)/i);
+      } else if (hashLower.startsWith("#product")) {
+        const idMatch = fullHash.match(/[?&]id=([^&]+)/i);
         if (idMatch && idMatch[1]) {
           setSelectedProductId(idMatch[1]);
         }
         setCurrentView("product");
+      } else if (hashLower.startsWith("#category=")) {
+        const catValue = decodeURIComponent(fullHash.slice("#category=".length).split("&")[0]);
+        setInitialCategoryFilter(catValue);
+        setCurrentView("store");
+      } else if (hashLower.startsWith("#brand=")) {
+        const brandValue = decodeURIComponent(fullHash.slice("#brand=".length).split("&")[0]);
+        setInitialBrandFilter(brandValue);
+        setCurrentView("store");
       } else {
         // default store view
         setCurrentView("store");
       }
     }
+
     handleHashChange();
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
@@ -89,6 +102,20 @@ function App() {
     setCurrentView("product");
   }
 
+  function navigateToCategory(categoryName) {
+    setInitialCategoryFilter(categoryName);
+    setInitialBrandFilter(null);
+    setCurrentView("store");
+    window.location.hash = `#category=${encodeURIComponent(categoryName)}`;
+  }
+
+  function navigateToBrand(brandName) {
+    setInitialBrandFilter(brandName);
+    setInitialCategoryFilter(null);
+    setCurrentView("store");
+    window.location.hash = `#brand=${encodeURIComponent(brandName)}`;
+  }
+
   if (currentView === "auth") {
     return (
       <AuthPage
@@ -116,6 +143,9 @@ function App() {
       <ProductDetail
         productId={selectedProductId}
         onNavigateBack={navigateToStore}
+        onNavigateCategory={navigateToCategory}
+        onNavigateBrand={navigateToBrand}
+        onSelectProduct={navigateToProduct}
       />
     );
   }
@@ -128,6 +158,12 @@ function App() {
       onLogout={handleLogout}
       onNavigateToOrders={navigateToOrders}
       onNavigateToProduct={navigateToProduct}
+      initialCategoryFilter={initialCategoryFilter}
+      initialBrandFilter={initialBrandFilter}
+      onClearInitialFilters={() => {
+        setInitialCategoryFilter(null);
+        setInitialBrandFilter(null);
+      }}
     />
   );
 }

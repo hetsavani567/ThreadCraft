@@ -9,11 +9,20 @@ import HeroImageSlider from "./HeroImageSlider.jsx";
 import { BANNER_SLIDES } from "../data/bannerSlides.js";
 import PaymentPage from "./PaymentPage.jsx";
 
-function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders }) {
+function Dashboard({
+  currentUser,
+  onNavigateToAuth,
+  onLogout,
+  onNavigateToOrders,
+  initialCategoryFilter,
+  initialBrandFilter,
+  onClearInitialFilters,
+}) {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(["All"]);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedBrand, setSelectedBrand] = useState("All");
   const [cart, setCart] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -124,6 +133,31 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders
     loadData();
   }, [loadData]);
 
+  // Listen for initial filter props from breadcrumb links
+  useEffect(() => {
+    if (initialCategoryFilter) {
+      setSelectedCategory(initialCategoryFilter);
+      setSelectedBrand("All");
+      // Scroll to products
+      setTimeout(() => {
+        const el = document.getElementById("products");
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
+  }, [initialCategoryFilter]);
+
+  useEffect(() => {
+    if (initialBrandFilter) {
+      setSelectedBrand(initialBrandFilter);
+      setSelectedCategory("All");
+      // Scroll to products
+      setTimeout(() => {
+        const el = document.getElementById("products");
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
+  }, [initialBrandFilter]);
+
   // Synchronize hash navigation for #payment
   useEffect(() => {
     function handleHashChange() {
@@ -211,7 +245,11 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders
       selectedCategory === "All" ||
       product.category === selectedCategory;
 
-    return matchesSearch && matchesCategory;
+    const matchesBrand =
+      selectedBrand === "All" ||
+      product.brand === selectedBrand;
+
+    return matchesSearch && matchesCategory && matchesBrand;
   });
 
   // Group products by category for horizontal scroll views
@@ -385,16 +423,20 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders
             </div>
           </div>
 
-          {/* Category Filter Pills */}
-          <div className="mt-8 flex flex-wrap gap-2.5">
+          {/* Category & Active Filter Pills */}
+          <div className="mt-8 flex flex-wrap items-center gap-2.5">
             {categories.map((category) => (
               <button
                 key={category}
                 type="button"
-                onClick={() => setSelectedCategory(category)}
-                aria-pressed={selectedCategory === category}
-                className={`rounded-full px-5 py-2.5 text-sm font-semibold transition ${
-                  selectedCategory === category
+                onClick={() => {
+                  setSelectedCategory(category);
+                  if (category !== "All") setSelectedBrand("All");
+                  if (onClearInitialFilters) onClearInitialFilters();
+                }}
+                aria-pressed={selectedCategory === category && selectedBrand === "All"}
+                className={`rounded-full px-5 py-2.5 text-sm font-semibold transition cursor-pointer ${
+                  selectedCategory === category && selectedBrand === "All"
                     ? "bg-stone-900 text-white shadow-sm"
                     : "border border-stone-300 bg-white text-stone-700 hover:border-stone-900"
                 }`}
@@ -402,6 +444,23 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders
                 {category}
               </button>
             ))}
+
+            {selectedBrand !== "All" && (
+              <div className="inline-flex items-center gap-2 rounded-full bg-amber-100 border border-amber-300 px-4 py-2 text-sm font-bold text-amber-900">
+                <span>Brand: {selectedBrand}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedBrand("All");
+                    if (onClearInitialFilters) onClearInitialFilters();
+                  }}
+                  className="hover:text-red-600 text-xs cursor-pointer ml-1"
+                  title="Clear brand filter"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Count and refresh */}
@@ -531,8 +590,10 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders
                 onClick={() => {
                   setSearch("");
                   setSelectedCategory("All");
+                  setSelectedBrand("All");
+                  if (onClearInitialFilters) onClearInitialFilters();
                 }}
-                className="mt-4 rounded-full bg-stone-900 px-5 py-2.5 text-white hover:bg-amber-700 transition"
+                className="mt-4 rounded-full bg-stone-900 px-5 py-2.5 text-white hover:bg-amber-700 transition cursor-pointer"
               >
                 Clear filters
               </button>
