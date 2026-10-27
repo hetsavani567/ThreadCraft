@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { apiRequest, fetchProducts, fetchCategories } from "../services/api";
 import Navbar from "./Navbar.jsx";
-import ProductCard from "./ProductCard.jsx";
+import CategoryScrollView from "./CategoryScrollView.jsx";
 import Footer from "./Footer.jsx";
 import EmployeePortal from "./EmployeePortal.jsx";
 import EditVariantModal from "./EditVariantModal.jsx";
@@ -214,6 +214,30 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders
     return matchesSearch && matchesCategory;
   });
 
+  // Group products by category for horizontal scroll views
+  const categorizedProducts = useMemo(() => {
+    const groups = {};
+    filteredProducts.forEach((product) => {
+      const cat = product.category || "General";
+      if (!groups[cat]) {
+        groups[cat] = [];
+      }
+      groups[cat].push(product);
+    });
+    return groups;
+  }, [filteredProducts]);
+
+  const displayCategoryNames = useMemo(() => {
+    const availableCategories = Object.keys(categorizedProducts);
+    const ordered = categories.filter(
+      (c) => c !== "All" && availableCategories.includes(c)
+    );
+    availableCategories.forEach((c) => {
+      if (!ordered.includes(c)) ordered.push(c);
+    });
+    return ordered;
+  }, [categorizedProducts, categories]);
+
   if (isPaymentPageOpen) {
     return (
       <PaymentPage
@@ -415,19 +439,40 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders
 
           {/* Products List / Loading / Error states */}
           {isLoading ? (
-            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {[1, 2, 3, 4].map((n) => (
+            <div className="mt-8 space-y-8">
+              {[1, 2].map((catIdx) => (
                 <div
-                  key={n}
-                  className="animate-pulse rounded-2xl border border-stone-200 bg-white p-4 shadow-xs"
+                  key={catIdx}
+                  className="rounded-3xl border border-stone-200/80 bg-white/70 p-6 shadow-xs"
                 >
-                  <div className="aspect-4/5 rounded-xl bg-stone-200" />
-                  <div className="mt-4 h-4 w-1/3 rounded bg-stone-200" />
-                  <div className="mt-2 h-6 w-3/4 rounded bg-stone-200" />
-                  <div className="mt-2 h-4 w-full rounded bg-stone-200" />
-                  <div className="mt-4 flex justify-between">
-                    <div className="h-6 w-1/4 rounded bg-stone-200" />
-                    <div className="h-8 w-1/3 rounded-full bg-stone-200" />
+                  <div className="flex items-center justify-between border-b border-stone-100 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-stone-200 animate-pulse" />
+                      <div>
+                        <div className="h-6 w-32 rounded bg-stone-200 animate-pulse" />
+                        <div className="mt-1.5 h-3.5 w-48 rounded bg-stone-200 animate-pulse" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="h-9 w-9 rounded-full bg-stone-200 animate-pulse" />
+                      <div className="h-9 w-9 rounded-full bg-stone-200 animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex gap-4 overflow-hidden pt-2">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <div
+                        key={n}
+                        className="w-[220px] sm:w-[240px] shrink-0 animate-pulse rounded-2xl border border-stone-200 bg-white p-3.5 shadow-xs"
+                      >
+                        <div className="h-40 sm:h-44 w-full rounded-xl bg-stone-200" />
+                        <div className="mt-3 h-4 w-3/4 rounded bg-stone-200" />
+                        <div className="mt-2 h-3 w-full rounded bg-stone-200" />
+                        <div className="mt-3 flex items-center justify-between">
+                          <div className="h-5 w-16 rounded bg-stone-200" />
+                          <div className="h-7 w-16 rounded-full bg-stone-200" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -453,18 +498,19 @@ function Dashboard({ currentUser, onNavigateToAuth, onLogout, onNavigateToOrders
                 <button
                   type="button"
                   onClick={loadData}
-                  className="rounded-full bg-red-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-red-800 transition"
+                  className="rounded-full bg-red-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-red-800 transition cursor-pointer"
                 >
                   Retry Connection
                 </button>
               </div>
             </div>
-          ) : filteredProducts.length > 0 ? (
-            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
+          ) : displayCategoryNames.length > 0 ? (
+            <div className="mt-4 space-y-6">
+              {displayCategoryNames.map((catName) => (
+                <CategoryScrollView
+                  key={catName}
+                  categoryName={catName}
+                  products={categorizedProducts[catName] || []}
                   onAddToCart={handleAddToCart}
                   isEmployee={isEmployee}
                   onAdjustStock={handleUpdateStock}

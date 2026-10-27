@@ -1,6 +1,17 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------- */
+/* SMOOTH HORIZONTAL SCROLLBAR UTILITIES                        */
+/* ------------------------------------------------------------- */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ------------------------------------------------------------- */
 /* AUTHENTIC RETAIL BILL PRINT STYLING - ZERO ROUNDED CORNERS   */
 /* ------------------------------------------------------------- */
 @media print {
