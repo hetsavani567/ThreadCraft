@@ -192,3 +192,18 @@ export const updateProductVariant = async (variantId, { color_size, selling_pric
     return rows[0]?.[0] || { updated_variant_id: Number(variantId), status: "Success" };
 };
 
+export const updateProduct = async (productId, { product_name, base_price, product_description, image_url }) => {
+    const [rows] = await pool.query(
+        "CALL sp_update_product(?, ?, ?, ?, ?)",
+        [
+            Number(productId),
+            product_name.trim(),
+            Number(base_price),
+            product_description !== undefined && product_description !== null ? String(product_description).trim() : null,
+            image_url !== undefined && image_url !== null ? String(image_url).trim() : null
+        ]
+    );
+
+    return rows[0]?.[0] || { updated_product_id: Number(productId), status: "Success" };
+};
+

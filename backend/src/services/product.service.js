@@ -30,4 +30,8 @@ export const updateProductVariant = async (variantId, data) => {
     return await productModel.updateProductVariant(variantId, data);
 };
 
+export const updateProduct = async (id, data) => {
+    return await productModel.updateProduct(id, data);
+};
+
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { fetchCategories, fetchBrands, createProduct } from "../services/api";
+import BannerManager from "./BannerManager.jsx";
 
 function EmployeePortal({
   isOpen,
@@ -10,8 +11,10 @@ function EmployeePortal({
   onApplyStaffDiscount,
   staffDiscountActive,
   onProductCreated,
+  bannerSlides = [],
+  onUpdateBannerSlides,
 }) {
-  const [activeTab, setActiveTab] = useState("inventory"); // "inventory" | "orders" | "pos" | "new-product"
+  const [activeTab, setActiveTab] = useState("inventory"); // "inventory" | "orders" | "pos" | "new-product" | "banner"
   const [stockSuccess, setStockSuccess] = useState("");
 
   // Categories and Brands from Database
@@ -347,6 +350,18 @@ function EmployeePortal({
             }`}
           >
             🏷️ POS & Staff Discount
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("banner")}
+            className={`border-b-2 px-4 py-3 text-sm font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+              activeTab === "banner"
+                ? "border-amber-700 text-amber-900 bg-amber-50/50"
+                : "border-transparent text-stone-500 hover:text-stone-900"
+            }`}
+          >
+            🖼️ Banner Showcase ({bannerSlides?.length || 0})
           </button>
         </div>
 
@@ -957,6 +972,14 @@ function EmployeePortal({
                 </div>
               </div>
             </div>
+          )}
+
+          {/* ================= TAB 5: BANNER SHOWCASE ================= */}
+          {activeTab === "banner" && (
+            <BannerManager
+              slides={bannerSlides}
+              onUpdateSlides={onUpdateBannerSlides}
+            />
           )}
         </div>
 

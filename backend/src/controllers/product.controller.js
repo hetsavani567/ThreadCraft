@@ -216,4 +216,75 @@ export const updateVariant = async (req, res, next) => {
     }
 };
 
+export const updateProduct = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { product_name, base_price, product_description, image_url } = req.body;
+
+        const parsedId = Number(id);
+        if (!id || isNaN(parsedId) || parsedId <= 0) {
+            return res.status(400).json({ message: "Invalid product ID supplied." });
+        }
+
+        const existing = await productService.fetchProductById(parsedId);
+        if (!existing) {
+            return res.status(404).json({ message: `Product #${parsedId} not found in database.` });
+        }
+
+        const newName = product_name !== undefined && String(product_name).trim() ? String(product_name).trim() : existing.name;
+        const newPrice = base_price !== undefined && !isNaN(Number(base_price)) ? Number(base_price) : Number(existing.price);
+        const newDesc = product_description !== undefined ? String(product_description).trim() : (existing.description || "");
+        let newImage = image_url !== undefined ? String(image_url).trim() : (existing.image || "");
+
+        if (!newName) {
+            return res.status(400).json({ message: "Product name cannot be empty." });
+        }
+        if (isNaN(newPrice) || newPrice <= 0) {
+            return res.status(400).json({ message: "Base price must be a positive number greater than 0." });
+        }
+
+        if (newImage) {
+            try {
+                const parsedUrl = new URL(newImage);
+                if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+                    return res.status(400).json({ message: "Image URL must start with http:// or https://" });
+                }
+            } catch (err) {
+                return res.status(400).json({ message: "Invalid image URL format. Please provide a valid web URL." });
+            }
+        }
+
+        const result = await productService.updateProduct(parsedId, {
+            product_name: newName,
+            base_price: newPrice,
+            product_description: newDesc,
+            image_url: newImage || null
+        });
+
+        res.json({
+            message: "Product updated successfully using sp_update_product",
+            result,
+            product: {
+                id: parsedId,
+                name: newName,
+                price: newPrice,
+                description: newDesc,
+                image: newImage || null
+            }
+        });
+    } catch (error) {
+        console.error("Database error in updateProduct:", error);
+        if (error.sqlState === "45000") {
+            return res.status(400).json({
+                message: error.sqlMessage || error.message,
+                error: error.message
+            });
+        }
+        res.status(500).json({
+            message: "Failed to update product in database: " + (error.sqlMessage || error.message),
+            error: error.message
+        });
+    }
+};
+
 
