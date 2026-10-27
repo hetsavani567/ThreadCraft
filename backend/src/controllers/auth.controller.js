@@ -13,12 +13,12 @@ import {
 } from "../utils/token.util.js";
 import { parseDeviceInfo, getClientIp } from "../utils/device.util.js";
 
-const getOAuth2Client = () => {
-    const clientId = process.env.GOOGLE_CLIENT_ID?.replace(/^["']|["']$/g, "").trim();
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.replace(/^["']|["']$/g, "").trim();
-    const callbackUrl = (process.env.GOOGLE_CALLBACK_URL || "http://localhost:5000/api/auth/google/callback").replace(/^["']|["']$/g, "").trim();
+const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || "656897661095-kes0u7lf6asimsaefa13beei6n07amhf.apps.googleusercontent.com").replace(/^["']|["']$/g, "").trim();
+const GOOGLE_CLIENT_SECRET = (process.env.GOOGLE_CLIENT_SECRET || "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").replace(/^["']|["']$/g, "").trim();
+const GOOGLE_CALLBACK_URL = (process.env.GOOGLE_CALLBACK_URL || "http://localhost:5000/api/auth/google/callback").replace(/^["']|["']$/g, "").trim();
 
-    return new OAuth2Client(clientId, clientSecret, callbackUrl);
+const getOAuth2Client = () => {
+    return new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL);
 };
 
 /**
@@ -333,7 +333,7 @@ export const googleAuthCallback = async (req, res) => {
             try {
                 const ticket = await client.verifyIdToken({
                     idToken: tokens.id_token,
-                    audience: process.env.GOOGLE_CLIENT_ID
+                    audience: GOOGLE_CLIENT_ID
                 });
                 googlePayload = ticket.getPayload();
             } catch (err) {
@@ -478,7 +478,7 @@ export const googleAuth = async (req, res) => {
                 const client = getOAuth2Client();
                 const ticket = await client.verifyIdToken({
                     idToken: rawToken,
-                    audience: process.env.GOOGLE_CLIENT_ID
+                    audience: GOOGLE_CLIENT_ID
                 });
                 googlePayload = ticket.getPayload();
             } catch (err) {
