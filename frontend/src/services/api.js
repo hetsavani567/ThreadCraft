@@ -155,10 +155,17 @@ export async function updateProductVariant(variantId, variantData) {
   });
 }
 
-export async function updateProduct(productId, productData) {
+export const updateProduct = async (productId, productData) => {
   return apiRequest(`/products/${productId}`, {
     method: "PUT",
     body: JSON.stringify(productData),
+  });
+};
+
+export async function submitProductReview(productId, reviewData) {
+  return apiRequest(`/products/${productId}/reviews`, {
+    method: "POST",
+    body: JSON.stringify(reviewData),
   });
 }
 
