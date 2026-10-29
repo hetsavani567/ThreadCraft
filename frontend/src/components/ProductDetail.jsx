@@ -5,7 +5,20 @@ import Footer from "./Footer.jsx";
 import Navbar from "./Navbar.jsx";
 import { getProductDiscount } from "../utils/discount.js";
 
-function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCategory, onNavigateBrand, onSelectProduct, onAddToCart, onNavigateToAuth }) {
+function ProductDetail({
+  productId,
+  currentUser,
+  cartCount = 0,
+  onNavigateBack,
+  onNavigateHome,
+  onNavigateCategory,
+  onNavigateBrand,
+  onSelectProduct,
+  onAddToCart,
+  onNavigateToAuth,
+  onNavigateToOrders,
+  onLogout,
+}) {
   const isEmployee = currentUser?.role === "employee";
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1157,6 +1170,7 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
                   product={relProduct}
                   onAddToCart={onAddToCart}
                   isEmployee={false}
+                  onSelectProduct={onSelectProduct}
                 />
               ))}
             </div>
