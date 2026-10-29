@@ -3,7 +3,7 @@ import { fetchProductById, fetchProducts, submitProductReview } from "../service
 import ProductCard from "./ProductCard.jsx";
 import Footer from "./Footer.jsx";
 
-function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCategory, onNavigateBrand, onSelectProduct, onAddToCart }) {
+function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCategory, onNavigateBrand, onSelectProduct, onAddToCart, onNavigateToAuth }) {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -66,6 +66,14 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
   }, [productId]);
 
   function handleAddToCartClick() {
+    if (!currentUser) {
+      if (onNavigateToAuth) {
+        onNavigateToAuth();
+      } else {
+        window.location.hash = "#auth";
+      }
+      return;
+    }
     if (!product || isOutOfStock) return;
     const currentVariant = variants.find((v) => v.variant_id === selectedVariantId) || variants[0];
     const priceToUse = currentVariant?.selling_price || product.price || 0;
@@ -85,6 +93,14 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
   }
 
   function handleBuyNowClick() {
+    if (!currentUser) {
+      if (onNavigateToAuth) {
+        onNavigateToAuth();
+      } else {
+        window.location.hash = "#auth";
+      }
+      return;
+    }
     handleAddToCartClick();
     window.location.hash = "#payment";
   }

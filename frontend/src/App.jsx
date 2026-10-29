@@ -172,6 +172,7 @@ function App() {
         onNavigateCategory={navigateToCategory}
         onNavigateBrand={navigateToBrand}
         onSelectProduct={navigateToProduct}
+        onNavigateToAuth={navigateToAuth}
       />
     );
   }

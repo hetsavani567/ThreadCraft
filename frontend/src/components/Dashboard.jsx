@@ -210,6 +210,15 @@ function Dashboard({
 
   // Add a product or increase its quantity in cart
   function handleAddToCart(product) {
+    if (!currentUser) {
+      if (onNavigateToAuth) {
+        onNavigateToAuth();
+      } else {
+        window.location.hash = "#auth";
+      }
+      return;
+    }
+
     const variantId = product.selectedVariant?.variant_id || "default";
     const cartKey = `${product.id}-${variantId}`;
 
@@ -684,8 +693,8 @@ function Dashboard({
           )}
         </section>
 
-        {/* Shopping cart (Visible only to Customers and Guests, NOT Employees) */}
-        {!isEmployee && (
+        {/* Shopping cart (Visible only to Logged-in Customers, NOT Employees and NOT Guests) */}
+        {currentUser && !isEmployee && (
           <section
             id="cart"
             className="mx-auto max-w-7xl px-5 py-12"
@@ -901,8 +910,8 @@ function Dashboard({
 
       </main>
 
-      {/* Floating Bottom Center Cart Icon (Floats when Shop section is open, hides below screen otherwise) */}
-      {!isEmployee && (
+      {/* Floating Bottom Center Cart Icon (Floats when Shop section is open, visible only to logged-in customers) */}
+      {currentUser && !isEmployee && (
         <div
           className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 transition-all duration-500 ease-in-out ${
             isShopVisible && !isCartVisible
