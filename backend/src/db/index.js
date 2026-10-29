@@ -11,12 +11,21 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 dotenv.config();
 
+const cleanStr = (val) => (val ? String(val).replace(/^["']|["']$/g, "").replace(/\r/g, "").trim() : "");
+
+const host = cleanStr(process.env.DB_HOST) || "localhost";
+const user = cleanStr(process.env.DB_USER) || "root";
+const password = cleanStr(process.env.DB_PASSWORD);
+const database = cleanStr(process.env.DB_NAME) || "retail_db";
+const port = Number(cleanStr(process.env.DB_PORT)) || 3306;
+const isCloudDb = host.includes("aivencloud.com") || host.includes("tidbcloud.com") || cleanStr(process.env.DB_SSL) === "true";
+
 const pool = mysql.createPool({
-    host: process.env.DB_HOST || "localhost",
-    user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME || "retail_db",
-    port: Number(process.env.DB_PORT) || 3306,
+    host,
+    user,
+    password,
+    database,
+    port,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
@@ -24,8 +33,8 @@ const pool = mysql.createPool({
     keepAliveInitialDelay: 0,
     maxIdle: 0,
     idleTimeout: 30000,
-    ssl: (process.env.DB_SSL === "true" || process.env.DB_HOST?.includes("tidbcloud.com"))
-        ? { minVersion: "TLSv1.2", rejectUnauthorized: true }
+    ssl: isCloudDb
+        ? { minVersion: "TLSv1.2", rejectUnauthorized: false }
         : undefined
 });
 

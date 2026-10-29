@@ -157,7 +157,9 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
         setFormErrors({ submit: response.message || "Failed to sign in." });
       }
     } catch (err) {
-      setFormErrors({ submit: err.message || "Invalid email or password." });
+      console.error("Login error:", err);
+      const serverErr = err.data?.error ? `${err.data.message || "Login failed"}: ${err.data.error}` : (err.message || "Invalid email or password.");
+      setFormErrors({ submit: serverErr });
     } finally {
       setIsLoading(false);
     }
