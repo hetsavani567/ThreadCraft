@@ -41,6 +41,8 @@ function PaymentPage({
   const [couponCode, setCouponCode] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState(0);
   const [couponMessage, setCouponMessage] = useState(null);
+  // Coupon input is collapsed by default  14 user must click to expand
+  const [showCouponInput, setShowCouponInput] = useState(false);
 
   // Shipping address state (prefilled from currentUser if present)
   const [isEditingAddress, setIsEditingAddress] = useState(!currentUser);
@@ -1050,47 +1052,53 @@ function PaymentPage({
                 ))}
               </div>
 
-              {/* Promo Code Input */}
+              {/* Promo Code Input — collapsed by default; click to expand */}
               <div className="border-t border-stone-200 pt-4">
-                <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    placeholder="Coupon code (e.g. THREAD10)"
-                    className="flex-1 rounded-xl border border-stone-300 px-3 py-2 text-xs uppercase tracking-wider text-stone-900 placeholder:normal-case placeholder:tracking-normal focus:border-amber-600 focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    className="rounded-xl bg-stone-900 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700 transition cursor-pointer"
-                  >
-                    Apply
-                  </button>
-                </form>
-
-                {couponMessage && (
-                  <p
-                    className={`mt-2 text-xs ${
-                      couponMessage.type === "success" ? "text-emerald-700 font-medium" : "text-red-600"
-                    }`}
-                  >
-                    {couponMessage.text}
-                  </p>
-                )}
-
-                {/* Quick Suggestion Pill */}
-                {appliedDiscount === 0 && (
+                {!showCouponInput && appliedDiscount === 0 && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setCouponCode("THREAD10");
-                      setAppliedDiscount(10);
-                      setCouponMessage({ type: "success", text: "10% Discount applied! 🎉" });
-                    }}
-                    className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 transition cursor-pointer"
+                    onClick={() => setShowCouponInput(true)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 transition cursor-pointer"
                   >
-                    <span>🏷️ Tap to apply code <strong>THREAD10</strong> (10% OFF)</span>
+                    <span>🏷️ Have a coupon? Click to enter</span>
                   </button>
+                )}
+
+                {showCouponInput && (
+                  <>
+                    <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value)}
+                        placeholder="Enter coupon code (e.g. THREAD10)"
+                        className="flex-1 rounded-xl border border-stone-300 px-3 py-2 text-xs uppercase tracking-wider text-stone-900 placeholder:normal-case placeholder:tracking-normal focus:border-amber-600 focus:outline-none"
+                        autoFocus
+                      />
+                      <button
+                        type="submit"
+                        className="rounded-xl bg-stone-900 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700 transition cursor-pointer"
+                      >
+                        Apply
+                      </button>
+                    </form>
+
+                    {couponMessage && (
+                      <p
+                        className={`mt-2 text-xs ${
+                          couponMessage.type === "success" ? "text-emerald-700 font-medium" : "text-red-600"
+                        }`}
+                      >
+                        {couponMessage.text}
+                      </p>
+                    )}
+                  </>
+                )}
+
+                {appliedDiscount > 0 && (
+                  <p className="text-xs text-emerald-700 font-medium">
+                    ✅ {appliedDiscount}% coupon applied!
+                  </p>
                 )}
               </div>
 

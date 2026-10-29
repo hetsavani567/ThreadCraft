@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 
 /**
- * CartBucketAnimation
+ * CartBagAnimation
  *
  * When triggered:
- * 1. An elegant shopping bucket rises up from the bottom baseline of the screen.
- * 2. The added product thumbnail drops from above smoothly into the bucket opening.
- * 3. The bucket catches the product with a bounce and "+1 In Bucket" celebration.
- * 4. The bucket returns down beneath the baseline carrying the product.
+ * 1. An elegant shopping bag rises up from the bottom baseline of the screen.
+ * 2. The added product thumbnail drops from above smoothly into the bag opening.
+ * 3. The bag catches the product with a bounce and "+1 Added" celebration.
+ * 4. The bag returns down beneath the baseline carrying the product.
  */
 function CartBucketAnimation({ animationData, onAnimationEnd }) {
   const [stage, setStage] = useState("idle"); // "idle" | "rising" | "dropping" | "caught" | "sinking"
@@ -18,20 +18,20 @@ function CartBucketAnimation({ animationData, onAnimationEnd }) {
       return;
     }
 
-    // Step 1: Bucket rises from baseline (0ms)
+    // Step 1: Bag rises from baseline (0ms)
     setStage("rising");
 
-    // Step 2: Product starts swooping down into the bucket (300ms)
+    // Step 2: Product starts swooping down into the bag (300ms)
     const tDrop = setTimeout(() => {
       setStage("dropping");
     }, 320);
 
-    // Step 3: Product hits bucket -> impact bounce & checkmark (750ms)
+    // Step 3: Product hits bag -> impact bounce & checkmark (750ms)
     const tCaught = setTimeout(() => {
       setStage("caught");
     }, 780);
 
-    // Step 4: Bucket sinks back below the baseline (1200ms)
+    // Step 4: Bag sinks back below the baseline (1200ms)
     const tSink = setTimeout(() => {
       setStage("sinking");
     }, 1250);
@@ -80,7 +80,7 @@ function CartBucketAnimation({ animationData, onAnimationEnd }) {
             <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-xs font-bold tracking-wide">
               {isCaught
-                ? `Added to Bucket! (+${quantity})`
+                ? `Added to Bag! (+${quantity})`
                 : `Adding ${product?.name?.slice(0, 22) || "item"}...`}
             </span>
           </div>
@@ -114,7 +114,7 @@ function CartBucketAnimation({ animationData, onAnimationEnd }) {
           </div>
         </div>
 
-        {/* The Bucket / Basket */}
+        {/* The Shopping Bag */}
         <div
           className={`relative z-10 transition-all duration-400 transform ease-out ${
             isRising
@@ -133,138 +133,103 @@ function CartBucketAnimation({ animationData, onAnimationEnd }) {
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-3 z-30 pointer-events-none animate-bounce">
               <span className="text-base select-none">✨</span>
               <span className="bg-emerald-600 text-white font-extrabold text-[11px] px-2.5 py-0.5 rounded-full shadow-lg border border-emerald-400">
-                +{quantity} IN CART
+                +{quantity} IN BAG
               </span>
               <span className="text-base select-none">✨</span>
             </div>
           )}
 
-          {/* Bucket Container SVG Graphic */}
+          {/* Shopping Bag SVG */}
           <div className="relative flex flex-col items-center">
             <svg
               className="w-24 h-24 sm:w-28 sm:h-28 drop-shadow-2xl"
-              viewBox="0 0 120 120"
+              viewBox="0 0 120 130"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
               <defs>
-                {/* Bucket body gradient */}
-                <linearGradient id="bucketGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#d97706" />
-                  <stop offset="50%" stopColor="#b45309" />
-                  <stop offset="100%" stopColor="#78350f" />
+                {/* Bag body gradient — warm amber brand colour */}
+                <linearGradient id="bagBody" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#fbbf24" />
+                  <stop offset="50%" stopColor="#d97706" />
+                  <stop offset="100%" stopColor="#92400e" />
                 </linearGradient>
 
-                {/* Metal rim gradient */}
-                <linearGradient id="metalRim" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#e5e7eb" />
-                  <stop offset="50%" stopColor="#ffffff" />
-                  <stop offset="100%" stopColor="#9ca3af" />
+                {/* Bag top-fold darker strip */}
+                <linearGradient id="bagTop" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#78350f" />
+                  <stop offset="100%" stopColor="#b45309" />
                 </linearGradient>
 
-                {/* Interior shadow */}
-                <linearGradient id="innerShadow" x1="50%" y1="0%" x2="50%" y2="100%">
-                  <stop offset="0%" stopColor="#451a03" />
-                  <stop offset="100%" stopColor="#78350f" />
+                {/* Rope handle gradient */}
+                <linearGradient id="handleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#92400e" />
+                  <stop offset="50%" stopColor="#d97706" />
+                  <stop offset="100%" stopColor="#92400e" />
                 </linearGradient>
               </defs>
 
-              {/* Bucket Handle */}
+              {/* ── Bag handles (two arched ropes from top corners) ── */}
+              {/* Left handle */}
               <path
-                d="M 32 46 C 32 16, 88 16, 88 46"
-                stroke="url(#metalRim)"
-                strokeWidth="4"
+                d="M 38 44 C 34 18, 52 10, 60 10"
+                stroke="url(#handleGrad)"
+                strokeWidth="5"
                 strokeLinecap="round"
                 fill="none"
               />
-              {/* Handle grip */}
+              {/* Right handle */}
+              <path
+                d="M 82 44 C 86 18, 68 10, 60 10"
+                stroke="url(#handleGrad)"
+                strokeWidth="5"
+                strokeLinecap="round"
+                fill="none"
+              />
+
+              {/* ── Top folded cuff of the bag ── */}
               <rect
-                x="52"
-                y="18"
-                width="16"
-                height="6"
+                x="22"
+                y="38"
+                width="76"
+                height="14"
                 rx="3"
-                fill="#1c1917"
-                stroke="#d1d5db"
-                strokeWidth="1"
+                fill="url(#bagTop)"
               />
 
-              {/* Bucket Interior Opening (Dark depth) */}
-              <ellipse
-                cx="60"
-                cy="46"
-                rx="32"
-                ry="10"
-                fill="url(#innerShadow)"
+              {/* ── Bag body (slightly wider at bottom — trapezoid shape) ── */}
+              <path
+                d="M 22 50 L 18 116 C 18 120, 102 120, 102 116 L 98 50 Z"
+                fill="url(#bagBody)"
+                stroke="#92400e"
+                strokeWidth="1.5"
               />
 
-              {/* Product inside bucket visible when caught */}
+              {/* ── Product inside bag visible when caught ── */}
               {(isCaught || isSinking) && (
                 <g className="transition-all duration-300">
-                  <ellipse
-                    cx="60"
-                    cy="45"
-                    rx="16"
-                    ry="6"
+                  {/* Tissue paper peek */}
+                  <path
+                    d="M 35 50 Q 60 44 85 50 L 82 60 Q 60 54 38 60 Z"
                     fill="#fef3c7"
-                    opacity="0.8"
-                  />
-                  <rect
-                    x="50"
-                    y="36"
-                    width="20"
-                    height="12"
-                    rx="3"
-                    fill="#f59e0b"
-                    stroke="#ffffff"
-                    strokeWidth="1.5"
+                    opacity="0.9"
                   />
                 </g>
               )}
 
-              {/* Bucket Body: Tapered Trapezoid */}
-              <path
-                d="M 28 46 L 38 102 C 39 108, 81 108, 82 102 L 92 46 Z"
-                fill="url(#bucketGrad)"
-                stroke="#78350f"
-                strokeWidth="2"
-              />
+              {/* ── Decorative side-fold crease lines ── */}
+              <line x1="28" y1="52" x2="24" y2="114" stroke="#b45309" strokeWidth="1.5" opacity="0.5" />
+              <line x1="92" y1="52" x2="96" y2="114" stroke="#b45309" strokeWidth="1.5" opacity="0.5" />
 
-              {/* Front Bucket Top Lip Rim */}
-              <ellipse
-                cx="60"
-                cy="46"
-                rx="32"
-                ry="8"
-                fill="url(#metalRim)"
-                stroke="#9ca3af"
-                strokeWidth="1.5"
-              />
+              {/* ── Brand stripe ── */}
+              <rect x="35" y="74" width="50" height="2.5" rx="1.25" fill="#1c1917" opacity="0.25" />
 
-              {/* Embossed Brand Stripes on Bucket */}
+              {/* ── ThreadCraft "T" monogram badge ── */}
+              <circle cx="60" cy="88" r="11" fill="#1c1917" opacity="0.9" />
               <path
-                d="M 34 68 Q 60 76 86 68"
-                stroke="#fbbf24"
-                strokeWidth="2"
-                strokeLinecap="round"
-                opacity="0.8"
-                fill="none"
-              />
-              <path
-                d="M 36 84 Q 60 92 84 84"
-                stroke="#fbbf24"
-                strokeWidth="2"
-                strokeLinecap="round"
-                opacity="0.6"
-                fill="none"
-              />
-
-              {/* ThreadCraft T Monogram on Bucket */}
-              <circle cx="60" cy="74" r="9" fill="#1c1917" opacity="0.9" />
-              <path
-                d="M 55 70 L 65 70 M 60 70 L 60 78"
+                d="M 54 84 L 66 84 M 60 84 L 60 94"
                 stroke="#f59e0b"
-                strokeWidth="2"
+                strokeWidth="2.5"
                 strokeLinecap="round"
               />
             </svg>

@@ -156,23 +156,26 @@ function App() {
       if (prev[prev.length - 1] === productId) return prev;
       return [...prev, productId];
     });
-    window.location.hash = `#product?id=${productId}`;
+    // Use pushState so the hashchange listener is NOT triggered (avoids duplicate history pushes)
+    window.history.pushState(null, "", `#product?id=${productId}`);
     setCurrentView("product");
   }
 
-  // Back Navigation: goes to the previous product if browsing deeper, else previous history or store
+  // Back Navigation: walks our own productHistory stack; when exhausted, returns to store.
+  // We never call window.history.back() because that re-fires the hashchange listener and
+  // causes an infinite loop of re-adding the current product to productHistory.
   function handleNavigateBack() {
     if (productHistory.length > 1) {
-      const newHistory = [...productHistory];
-      newHistory.pop(); // Remove current product
+      const newHistory = productHistory.slice(0, -1); // remove current product
       const prevProductId = newHistory[newHistory.length - 1];
       setProductHistory(newHistory);
       setSelectedProductId(prevProductId);
-      window.location.hash = `#product?id=${prevProductId}`;
+      // replaceState keeps the URL in sync WITHOUT triggering hashchange
+      window.history.replaceState(null, "", `#product?id=${prevProductId}`);
       setCurrentView("product");
-    } else if (window.history.length > 1) {
-      window.history.back();
     } else {
+      // No more product history — go back to store
+      setProductHistory([]);
       navigateToStore();
     }
   }
