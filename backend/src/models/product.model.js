@@ -257,4 +257,16 @@ export const createReview = async ({ product_id, cust_id, customer_name, rating,
     return rows[0]?.[0] || { review_id: null, status: "Review submitted successfully" };
 };
 
+export const deleteReview = async (reviewId) => {
+    const cleanReviewId = Number(reviewId);
+    try {
+        const [rows] = await pool.query("CALL sp_delete_review(?)", [cleanReviewId]);
+        return rows[0]?.[0] || { deleted_review_id: cleanReviewId, status: "Review deleted successfully" };
+    } catch (spErr) {
+        console.warn("Notice: sp_delete_review execution fallback:", spErr.message);
+        const [delResult] = await pool.query("DELETE FROM review WHERE review_id = ?", [cleanReviewId]);
+        return { deleted_review_id: cleanReviewId, affectedRows: delResult.affectedRows, status: "Review deleted successfully" };
+    }
+};
+
 
