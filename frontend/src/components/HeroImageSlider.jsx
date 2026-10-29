@@ -77,10 +77,6 @@ function HeroImageSlider({ slides = BANNER_SLIDES, autoPlayInterval = 4000, chil
             )}
             <span className="text-stone-500">•</span>
             <span className="font-medium text-white">{activeSlide.title}</span>
-            <span className="text-stone-500">•</span>
-            <span className="text-[11px] font-mono text-stone-400">
-              {String(currentIndex + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}
-            </span>
           </div>
         )}
       </div>

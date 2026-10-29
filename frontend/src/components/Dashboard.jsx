@@ -208,6 +208,20 @@ function Dashboard({
     }
   }
 
+  // Select a category and open in Grid View with smooth scroll
+  function handleSelectCategory(category) {
+    setSelectedCategory(category);
+    if (category !== "All") setSelectedBrand("All");
+    if (onClearInitialFilters) onClearInitialFilters();
+    const el = document.getElementById("products");
+    if (el) {
+      const header = document.querySelector("header");
+      const navbarHeight = header ? header.offsetHeight : 61;
+      const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+    }
+  }
+
   // Add a product or increase its quantity in cart
   function handleAddToCart(product) {
     if (!currentUser) {
@@ -393,13 +407,15 @@ function Dashboard({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5m7.5 7.5V3" />
                   </svg>
                 </a>
-                <a
-                  href="#cart"
-                  onClick={scrollToCart}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 backdrop-blur-md px-7 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-white/20 hover:border-white transition cursor-pointer"
-                >
-                  <span>View Cart ({cartCount})</span>
-                </a>
+                {currentUser && !isEmployee && (
+                  <a
+                    href="#cart"
+                    onClick={scrollToCart}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 backdrop-blur-md px-7 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-white/20 hover:border-white transition cursor-pointer"
+                  >
+                    <span>View Cart ({cartCount})</span>
+                  </a>
+                )}
               </div>
             </div>
           </HeroImageSlider>
@@ -462,11 +478,7 @@ function Dashboard({
               <button
                 key={category}
                 type="button"
-                onClick={() => {
-                  setSelectedCategory(category);
-                  if (category !== "All") setSelectedBrand("All");
-                  if (onClearInitialFilters) onClearInitialFilters();
-                }}
+                onClick={() => handleSelectCategory(category)}
                 aria-pressed={selectedCategory === category && selectedBrand === "All"}
                 className={`rounded-full px-5 py-2.5 text-sm font-semibold transition cursor-pointer ${
                   selectedCategory === category && selectedBrand === "All"
@@ -667,7 +679,7 @@ function Dashboard({
                     onEditVariant={(prod, variant) =>
                       setEditingVariantProduct({ product: prod, variant })
                     }
-                    onSelectCategory={(cat) => setSelectedCategory(cat)}
+                    onSelectCategory={handleSelectCategory}
                   />
                 ))}
               </div>
@@ -686,7 +698,7 @@ function Dashboard({
                   onEditVariant={(prod, variant) =>
                     setEditingVariantProduct({ product: prod, variant })
                   }
-                  onSelectCategory={(cat) => setSelectedCategory(cat)}
+                  onSelectCategory={handleSelectCategory}
                 />
               ))}
             </div>
