@@ -7,6 +7,7 @@ function Navbar({
   onNavigateToOrders,
 }) {
   const isEmployee = currentUser?.role === "employee";
+  const isLoggedInCustomer = Boolean(currentUser && !isEmployee);
 
   function handleHomeClick(e) {
     if (!isEmployee) {
@@ -71,25 +72,29 @@ function Navbar({
                 >
                   Shop
                 </a>
-                <a
-                  href="#orders"
-                  onClick={(e) => {
-                    if (onNavigateToOrders) {
-                      e.preventDefault();
-                      onNavigateToOrders();
-                    }
-                  }}
-                  className="hover:text-amber-700 transition flex items-center gap-1 cursor-pointer"
-                >
-                  Orders & Tracking
-                </a>
-                <a
-                  href="#cart"
-                  onClick={handleCartClick}
-                  className="hover:text-amber-700 transition cursor-pointer"
-                >
-                  Cart{cartCount > 0 ? ` (${cartCount})` : ""}
-                </a>
+                {isLoggedInCustomer && (
+                  <>
+                    <a
+                      href="#orders"
+                      onClick={(e) => {
+                        if (onNavigateToOrders) {
+                          e.preventDefault();
+                          onNavigateToOrders();
+                        }
+                      }}
+                      className="hover:text-amber-700 transition flex items-center gap-1 cursor-pointer"
+                    >
+                      Orders & Tracking
+                    </a>
+                    <a
+                      href="#cart"
+                      onClick={handleCartClick}
+                      className="hover:text-amber-700 transition cursor-pointer"
+                    >
+                      Cart{cartCount > 0 ? ` (${cartCount})` : ""}
+                    </a>
+                  </>
+                )}
               </>
             ) : (
               <a
@@ -104,8 +109,8 @@ function Navbar({
         </div>
 
         <div className="flex items-center gap-2.5">
-          {/* Quick Orders Button */}
-          {!isEmployee && (
+          {/* Quick Orders Button - only visible for logged in customers */}
+          {isLoggedInCustomer && (
             <button
               type="button"
               onClick={onNavigateToOrders}

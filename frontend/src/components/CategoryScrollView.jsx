@@ -99,34 +99,39 @@ function CategoryScrollView({
 
   return (
     <section className="mt-8 rounded-3xl border border-stone-200/80 bg-white/70 p-5 sm:p-6 shadow-xs backdrop-blur-xs transition hover:border-stone-300">
-      {/* Category Header with Title, Count and Navigation Buttons */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 pb-4">
+      {/* Category Header with Title, Count and Navigation Buttons - Entire header bar is clickable to open Grid View */}
+      <div
+        onClick={() => onSelectCategory && onSelectCategory(categoryName)}
+        className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 pb-4 cursor-pointer group hover:bg-amber-50/40 -mx-2 sm:-mx-3 px-2 sm:px-3 pt-1 rounded-2xl transition-colors duration-200"
+        title={`Click anywhere in this header to open ${categoryName} section`}
+      >
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 border border-amber-200/70 shadow-xs">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 border border-amber-200/70 shadow-xs group-hover:scale-105 group-hover:bg-amber-100 transition">
             {getCategoryIcon(categoryName)}
           </div>
           <div>
             <div className="flex items-center gap-2.5">
-              <h3 className="text-xl sm:text-2xl font-black tracking-tight text-stone-900">
+              <h3 className="text-xl sm:text-2xl font-black tracking-tight text-stone-900 group-hover:text-amber-800 transition">
                 {categoryName}
               </h3>
               <span className="rounded-full bg-amber-100/80 px-2.5 py-0.5 text-xs font-bold text-amber-900">
                 {products.length} {products.length === 1 ? "product" : "products"}
               </span>
             </div>
-            <p className="text-xs text-stone-500 mt-0.5">
-              Swipe or use arrows to view all products in this category
+            <p className="text-xs text-stone-500 mt-0.5 group-hover:text-amber-700 transition flex items-center gap-1">
+              <span>Click section to open {categoryName} in Grid View</span>
+              <span className="font-bold text-amber-700">→</span>
             </p>
           </div>
         </div>
 
         {/* Scroll Navigation Arrows & View in Grid */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {onSelectCategory && (
             <button
               type="button"
               onClick={() => onSelectCategory(categoryName)}
-              className="mr-1 inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-700 shadow-xs hover:border-amber-600 hover:text-amber-800 transition cursor-pointer"
+              className="mr-1 inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-xs font-bold text-stone-700 shadow-xs group-hover:border-amber-600 group-hover:text-amber-800 group-hover:bg-amber-50 transition cursor-pointer"
             >
               <span>View in Grid</span>
               <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -191,6 +196,26 @@ function CategoryScrollView({
               />
             </div>
           ))}
+
+          {onSelectCategory && (
+            <div
+              onClick={() => onSelectCategory(categoryName)}
+              className="flex-none w-[180px] sm:w-[200px] snap-start flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-300 bg-stone-50/70 p-6 text-center hover:border-amber-600 hover:bg-amber-50/50 transition cursor-pointer group shadow-2xs"
+              title={`Click to open all ${categoryName} in Grid View`}
+            >
+              <div className="h-12 w-12 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 text-lg group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-stone-950 transition">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              </div>
+              <p className="mt-3 text-sm font-bold text-stone-900 group-hover:text-amber-800 transition">
+                View All {categoryName}
+              </p>
+              <span className="mt-1 text-xs text-stone-500 group-hover:text-amber-700 transition">
+                Open in Grid View →
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Right edge subtle gradient fade hint when more items are available to scroll */}
