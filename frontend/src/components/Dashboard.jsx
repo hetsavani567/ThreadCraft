@@ -15,16 +15,24 @@ function Dashboard({
   onNavigateToAuth,
   onLogout,
   onNavigateToOrders,
-  // initialCategoryFilter,
-  // initialBrandFilter,
+  onNavigateToProduct,
+  initialCategoryFilter,
+  initialBrandFilter,
   onClearInitialFilters,
+  cart: externalCart,
+  setCart: externalSetCart,
+  onAddToCart: externalOnAddToCart,
+  onChangeQuantity: externalOnChangeQuantity,
+  onRemoveFromCart: externalOnRemoveFromCart,
 }) {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(["All"]);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedBrand, setSelectedBrand] = useState("All");
-  const [cart, setCart] = useState([]);
+  const [internalCart, setInternalCart] = useState([]);
+  const cart = externalCart !== undefined ? externalCart : internalCart;
+  const setCart = externalSetCart || setInternalCart;
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEmployeePortalOpen, setIsEmployeePortalOpen] = useState(false);
@@ -223,13 +231,18 @@ function Dashboard({
   }
 
   // Add a product or increase its quantity in cart
-  function handleAddToCart(product) {
+  function handleAddToCart(product, quantity = 1) {
     if (!currentUser) {
       if (onNavigateToAuth) {
         onNavigateToAuth();
       } else {
         window.location.hash = "#auth";
       }
+      return;
+    }
+
+    if (externalOnAddToCart) {
+      externalOnAddToCart(product, quantity);
       return;
     }
 
@@ -242,7 +255,7 @@ function Dashboard({
       if (existingItem) {
         return currentCart.map((item) =>
           item.cartKey === cartKey
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       }
@@ -252,7 +265,7 @@ function Dashboard({
         {
           ...product,
           cartKey,
-          quantity: 1,
+          quantity,
         },
       ];
     });
@@ -260,6 +273,10 @@ function Dashboard({
 
   // Increase or decrease item quantity in cart
   function changeQuantity(cartKey, amount) {
+    if (externalOnChangeQuantity) {
+      externalOnChangeQuantity(cartKey, amount);
+      return;
+    }
     setCart((currentCart) =>
       currentCart
         .map((item) =>
@@ -273,6 +290,10 @@ function Dashboard({
 
   // Remove an item from cart
   function removeFromCart(cartKey) {
+    if (externalOnRemoveFromCart) {
+      externalOnRemoveFromCart(cartKey);
+      return;
+    }
     setCart((currentCart) =>
       currentCart.filter((item) => item.cartKey !== cartKey)
     );

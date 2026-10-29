@@ -5,6 +5,7 @@ function Navbar({
   onLogout,
   onOpenEmployeePortal,
   onNavigateToOrders,
+  onNavigateToStore,
 }) {
   const isEmployee = currentUser?.role === "employee";
   const isLoggedInCustomer = Boolean(currentUser && !isEmployee);
@@ -12,10 +13,14 @@ function Navbar({
   function handleHomeClick(e) {
     if (!isEmployee) {
       e.preventDefault();
-      if (window.location.hash) {
-        window.history.pushState(null, "", window.location.pathname);
+      if (onNavigateToStore) {
+        onNavigateToStore();
+      } else {
+        if (window.location.hash) {
+          window.history.pushState(null, "", window.location.pathname);
+        }
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
-      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }
 
@@ -28,6 +33,9 @@ function Navbar({
       const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
       window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
       window.history.pushState(null, "", "#products");
+    } else {
+      if (onNavigateToStore) onNavigateToStore();
+      window.location.hash = "#products";
     }
   }
 
@@ -40,6 +48,9 @@ function Navbar({
       const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
       window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
       window.history.pushState(null, "", "#cart");
+    } else {
+      if (onNavigateToStore) onNavigateToStore();
+      window.location.hash = "#cart";
     }
   }
 

@@ -34,6 +34,10 @@ function OrdersHistory({
   const [searchQuery, setSearchQuery] = useState("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [cancelModalOrder, setCancelModalOrder] = useState(null);
+  const [cancelReason, setCancelReason] = useState("Ordered by mistake");
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelFeedback, setCancelFeedback] = useState(null);
 
   // Load orders strictly belonging to the currently logged-in customer
   const loadOrders = async () => {
@@ -256,6 +260,66 @@ function OrdersHistory({
       );
     } finally {
       setIsUpdatingStatus(false);
+    }
+  };
+
+  // Cancel order handler
+  const handleConfirmCancelOrder = async () => {
+    if (!cancelModalOrder || isCancelling) return;
+    setIsCancelling(true);
+    const targetId = cancelModalOrder.order_id;
+
+    try {
+      if (!isNaN(Number(targetId))) {
+        await updateOrderStatus(targetId, "Cancelled");
+      }
+
+      setOrders((prev) =>
+        prev.map((o) =>
+          String(o.order_id) === String(targetId)
+            ? { ...o, order_status: "Cancelled", cancel_reason: cancelReason }
+            : o
+        )
+      );
+
+      try {
+        const localSaved = localStorage.getItem("threadcraft_orders");
+        if (localSaved) {
+          const parsed = JSON.parse(localSaved);
+          const updated = parsed.map((o) =>
+            String(o.order_id || o.orderId) === String(targetId)
+              ? { ...o, order_status: "Cancelled", cancel_reason: cancelReason }
+              : o
+          );
+          localStorage.setItem("threadcraft_orders", JSON.stringify(updated));
+        }
+      } catch (e) {
+        console.warn("Could not sync cancelled status to localStorage:", e);
+      }
+
+      setCancelFeedback({
+        type: "success",
+        message: `Order #TC-${String(targetId).padStart(4, "0")} was successfully cancelled.`
+      });
+      setTimeout(() => setCancelFeedback(null), 4500);
+    } catch (err) {
+      console.error("Failed to cancel order via API:", err);
+      // Fallback local update
+      setOrders((prev) =>
+        prev.map((o) =>
+          String(o.order_id) === String(targetId)
+            ? { ...o, order_status: "Cancelled", cancel_reason: cancelReason }
+            : o
+        )
+      );
+      setCancelFeedback({
+        type: "success",
+        message: `Order #TC-${String(targetId).padStart(4, "0")} was marked as cancelled.`
+      });
+      setTimeout(() => setCancelFeedback(null), 4500);
+    } finally {
+      setIsCancelling(false);
+      setCancelModalOrder(null);
     }
   };
 
@@ -620,6 +684,18 @@ function OrdersHistory({
                           <span className="text-sm font-black text-amber-700">
                             ₹{Number(order.final_amount).toLocaleString("en-IN")}
                           </span>
+                          {(order.order_status || "").toLowerCase() !== "delivered" && (order.order_status || "").toLowerCase() !== "cancelled" && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCancelModalOrder(order);
+                              }}
+                              className="text-[10px] font-bold text-rose-600 hover:text-rose-800 hover:underline block mt-0.5 cursor-pointer ml-auto"
+                            >
+                              Cancel Order
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -662,7 +738,22 @@ function OrdersHistory({
                       </div>
 
                       <div className="flex flex-col items-end gap-1.5">
-                        {renderStatusBadge(selectedOrder.order_status)}
+                        <div className="flex items-center gap-2">
+                          {renderStatusBadge(selectedOrder.order_status)}
+                          {!isCancelled && (selectedOrder.order_status || "").toLowerCase() !== "delivered" && (
+                            <button
+                              type="button"
+                              onClick={() => setCancelModalOrder(selectedOrder)}
+                              className="inline-flex items-center gap-1 rounded-full border border-rose-400/40 bg-rose-500/20 px-2.5 py-0.5 text-xs font-bold text-rose-200 hover:bg-rose-600 hover:text-white transition cursor-pointer active:scale-95"
+                              title="Cancel this order"
+                            >
+                              <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              <span>Cancel Order</span>
+                            </button>
+                          )}
+                        </div>
                         <span className="text-xs text-stone-300 font-medium">
                           Dispatch: {selectedOrder.branch_name || "Main Hub"}
                         </span>
@@ -742,36 +833,51 @@ function OrdersHistory({
                         {/* Interactive Simulation Controls */}
                         <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-stone-50 border border-stone-200 p-4">
                           <div className="text-xs text-stone-600">
-                            <span className="font-bold text-stone-900">Interactive Simulation:</span>
+                            <span className="font-bold text-stone-900">Order Actions & Tracking:</span>
                             <span className="ml-1 text-stone-500">
-                              Advance the order status in MySQL to test the live tracker.
+                              Cancel order or simulate live delivery milestones.
                             </span>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={handleAdvanceTracking}
-                            disabled={isUpdatingStatus || currentStep >= 3}
-                            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition shadow-xs cursor-pointer ${
-                              currentStep >= 3
-                                ? "bg-stone-200 text-stone-400 cursor-not-allowed"
-                                : "bg-stone-900 text-white hover:bg-amber-700 hover:shadow-md"
-                            }`}
-                          >
-                            {isUpdatingStatus ? (
-                              <>
-                                <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                <span>Updating...</span>
-                              </>
-                            ) : currentStep >= 3 ? (
-                              <span>✓ Order Delivered</span>
-                            ) : (
-                              <>
-                                <span>Advance Status to &ldquo;{STATUS_STEPS[currentStep + 1]?.key}&rdquo;</span>
-                                <span>➔</span>
-                              </>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {!isCancelled && (selectedOrder.order_status || "").toLowerCase() !== "delivered" && (
+                              <button
+                                type="button"
+                                onClick={() => setCancelModalOrder(selectedOrder)}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-rose-300 bg-white px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 hover:border-rose-400 transition shadow-xs cursor-pointer active:scale-95"
+                              >
+                                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                <span>Cancel Order</span>
+                              </button>
                             )}
-                          </button>
+
+                            <button
+                              type="button"
+                              onClick={handleAdvanceTracking}
+                              disabled={isUpdatingStatus || currentStep >= 3}
+                              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition shadow-xs cursor-pointer ${
+                                currentStep >= 3
+                                  ? "bg-stone-200 text-stone-400 cursor-not-allowed"
+                                  : "bg-stone-900 text-white hover:bg-amber-700 hover:shadow-md"
+                              }`}
+                            >
+                              {isUpdatingStatus ? (
+                                <>
+                                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                  <span>Updating...</span>
+                                </>
+                              ) : currentStep >= 3 ? (
+                                <span>✓ Order Delivered</span>
+                              ) : (
+                                <>
+                                  <span>Advance Status to &ldquo;{STATUS_STEPS[currentStep + 1]?.key}&rdquo;</span>
+                                  <span>➔</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </>
                     )}
@@ -953,6 +1059,118 @@ function OrdersHistory({
           order={selectedOrder}
           onClose={() => setShowInvoiceModal(false)}
         />
+      )}
+
+      {/* ============================================================= */}
+      {/* 5. CANCELLATION CONFIRMATION MODAL                            */}
+      {/* ============================================================= */}
+      {cancelModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl border border-stone-200 animate-scale-up">
+            {/* Header */}
+            <div className="bg-rose-50 border-b border-rose-100 p-5 flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center text-lg font-bold">
+                  ✕
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-rose-950">Cancel Order</h3>
+                  <p className="text-xs text-rose-700 font-mono">
+                    #TC-{String(cancelModalOrder.order_id).padStart(4, "0")}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCancelModalOrder(null)}
+                className="text-stone-400 hover:text-stone-700 text-lg font-bold p-1 rounded-full cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <div className="rounded-2xl bg-stone-50 border border-stone-200 p-4">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-stone-500 font-medium">Refund Amount:</span>
+                  <span className="font-black text-stone-900 text-sm">
+                    ₹{Number(cancelModalOrder.final_amount).toLocaleString("en-IN")}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs mt-1.5">
+                  <span className="text-stone-500 font-medium">Refund Destination:</span>
+                  <span className="font-semibold text-emerald-700">Original Payment Method</span>
+                </div>
+                <div className="flex justify-between items-center text-xs mt-1.5">
+                  <span className="text-stone-500 font-medium">Garments:</span>
+                  <span className="font-medium text-stone-700">
+                    {cancelModalOrder.items?.length || 1} item(s)
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                  Reason for Cancellation:
+                </label>
+                <select
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-stone-800 focus:border-rose-500 focus:outline-none"
+                >
+                  <option value="Ordered by mistake">Ordered by mistake</option>
+                  <option value="Changed mind / Don't need it anymore">Changed mind / Don't need it anymore</option>
+                  <option value="Found a better price elsewhere">Found a better price elsewhere</option>
+                  <option value="Need to change shipping address/details">Need to change shipping address/details</option>
+                  <option value="Estimated delivery date is too late">Estimated delivery date is too late</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <p className="text-[11px] text-stone-500 leading-relaxed">
+                By confirming, your order will be stopped immediately. In accordance with banking policies, full refund will be initiated to your account within 3-5 business days.
+              </p>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="border-t border-stone-100 bg-stone-50/50 p-4 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isCancelling}
+                onClick={() => setCancelModalOrder(null)}
+                className="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 transition cursor-pointer"
+              >
+                Keep Order
+              </button>
+
+              <button
+                type="button"
+                disabled={isCancelling}
+                onClick={handleConfirmCancelOrder}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-rose-700 shadow-sm transition active:scale-95 cursor-pointer disabled:opacity-60"
+              >
+                {isCancelling ? (
+                  <>
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Cancelling...</span>
+                  </>
+                ) : (
+                  <span>Confirm Cancellation</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Feedback Toast */}
+      {cancelFeedback && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-2xl bg-stone-900 text-white px-5 py-3 shadow-2xl border border-stone-700 animate-slide-up">
+          <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+          <span className="text-xs font-bold">{cancelFeedback.message}</span>
+        </div>
       )}
     </div>
   );
