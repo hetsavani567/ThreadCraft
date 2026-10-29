@@ -362,3 +362,44 @@ export const addReview = async (req, res, next) => {
     }
 };
 
+export const deleteReview = async (req, res) => {
+    try {
+        const reviewId = req.params.reviewId || req.params.id;
+        const productId = req.params.productId || (req.params.reviewId ? req.params.id : null);
+        const parsedReviewId = Number(reviewId);
+
+        if (!parsedReviewId || isNaN(parsedReviewId)) {
+            return res.status(400).json({ message: "Invalid review ID" });
+        }
+
+        const result = await productService.removeProductReview(parsedReviewId);
+        logDbChange("DELETE REVIEW", `review_id=${parsedReviewId}${productId ? `, product_id=${productId}` : ""}`);
+
+        let updatedProduct = null;
+        if (productId) {
+            const parsedProductId = Number(productId);
+            if (parsedProductId && !isNaN(parsedProductId)) {
+                updatedProduct = await productService.fetchProductById(parsedProductId);
+            }
+        }
+
+        res.status(200).json({
+            message: "Review removed successfully",
+            result,
+            product: updatedProduct
+        });
+    } catch (error) {
+        console.error("Database error in deleteReview:", error);
+        if (error.sqlState === "45000") {
+            return res.status(400).json({
+                message: error.sqlMessage || error.message,
+                error: error.message
+            });
+        }
+        res.status(500).json({
+            message: "Failed to remove review: " + (error.sqlMessage || error.message),
+            error: error.message
+        });
+    }
+};
+

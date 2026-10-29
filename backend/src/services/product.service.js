@@ -39,5 +39,9 @@ export const addProductReview = async (productId, data) => {
     return await productModel.createReview({ product_id: productId, ...data });
 };
 
+export const removeProductReview = async (reviewId) => {
+    return await productModel.deleteReview(reviewId);
+};
+
 
 

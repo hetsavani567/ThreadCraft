@@ -2,17 +2,18 @@
 -- THREADCRAFT DATABASE MIGRATION SCRIPT
 -- =====================================================================
 -- Purpose: Divide the generic 'Clothing' category into two distinct 
---          categories: 'Upper Body' and 'Lower Body'.
+--          categories: 'Topwear' (T-shirts, shirts, tops) and 
+--          'Bottomwear' (pants, jeans, chinos, shorts).
 --
 -- Actions:
---   1. Inserts 'Upper Body' category (if not exists)
---   2. Inserts 'Lower Body' category (if not exists)
---   3. Reassigns Upper Body items ('Running T-Shirt', 'Hoodie', 
+--   1. Inserts 'Topwear' category (if not exists)
+--   2. Inserts 'Bottomwear' category (if not exists)
+--   3. Reassigns Topwear items ('Running T-Shirt', 'Hoodie', 
 --      'Classic Denim Trucker Jacket', 'Oxford Cotton Casual Shirt', 
---      'Relaxed Fit Graphic Tee') to 'Upper Body'
---   4. Reassigns Lower Body items ('Training Shorts', 
+--      'Relaxed Fit Graphic Tee') to 'Topwear'
+--   4. Reassigns Bottomwear items ('Training Shorts', 
 --      'Slim Fit Chino Trousers', '511 Slim Fit Stretch Jeans') 
---      to 'Lower Body'
+--      to 'Bottomwear'
 --   5. Safely handles any remaining products mapped to 'Clothing'
 --   6. Deletes the legacy 'Clothing' category once unreferenced
 --   7. Displays summary verification
@@ -26,35 +27,35 @@ USE retail_db;
 SET SQL_SAFE_UPDATES = 0;
 
 -- ---------------------------------------------------------------------
--- STEP 1: Insert new 'Upper Body' category
+-- STEP 1: Insert new 'Topwear' category
 -- ---------------------------------------------------------------------
 INSERT INTO category (category_type, description)
-SELECT 'Upper Body', 'T-shirts, shirts, jackets, hoodies, sweaters, and top apparel'
+SELECT 'Topwear', 'T-shirts, shirts, jackets, hoodies, sweaters, and top apparel'
 FROM DUAL
 WHERE NOT EXISTS (
-    SELECT 1 FROM category WHERE category_type = 'Upper Body'
+    SELECT 1 FROM category WHERE category_type = 'Topwear'
 );
 
 -- ---------------------------------------------------------------------
--- STEP 2: Insert new 'Lower Body' category
+-- STEP 2: Insert new 'Bottomwear' category
 -- ---------------------------------------------------------------------
 INSERT INTO category (category_type, description)
-SELECT 'Lower Body', 'Jeans, trousers, chinos, shorts, track pants, and bottom apparel'
+SELECT 'Bottomwear', 'Jeans, pants, trousers, chinos, shorts, and bottom apparel'
 FROM DUAL
 WHERE NOT EXISTS (
-    SELECT 1 FROM category WHERE category_type = 'Lower Body'
+    SELECT 1 FROM category WHERE category_type = 'Bottomwear'
 );
 
 -- Store category IDs in session variables
-SET @upper_id = (SELECT category_id FROM category WHERE category_type = 'Upper Body' LIMIT 1);
-SET @lower_id = (SELECT category_id FROM category WHERE category_type = 'Lower Body' LIMIT 1);
+SET @top_id = (SELECT category_id FROM category WHERE category_type = 'Topwear' LIMIT 1);
+SET @bottom_id = (SELECT category_id FROM category WHERE category_type = 'Bottomwear' LIMIT 1);
 SET @cloth_id = (SELECT category_id FROM category WHERE category_type = 'Clothing' LIMIT 1);
 
 -- ---------------------------------------------------------------------
--- STEP 3: Reassign Upper Body products currently under 'Clothing'
+-- STEP 3: Reassign Topwear products currently under 'Clothing'
 -- ---------------------------------------------------------------------
 UPDATE product
-SET category_id = @upper_id
+SET category_id = @top_id
 WHERE (@cloth_id IS NOT NULL AND category_id = @cloth_id)
   AND (
        product_name IN (
@@ -74,10 +75,10 @@ WHERE (@cloth_id IS NOT NULL AND category_id = @cloth_id)
   );
 
 -- ---------------------------------------------------------------------
--- STEP 4: Reassign Lower Body products currently under 'Clothing'
+-- STEP 4: Reassign Bottomwear products currently under 'Clothing'
 -- ---------------------------------------------------------------------
 UPDATE product
-SET category_id = @lower_id
+SET category_id = @bottom_id
 WHERE (@cloth_id IS NOT NULL AND category_id = @cloth_id)
   AND (
        product_name IN (
@@ -94,10 +95,10 @@ WHERE (@cloth_id IS NOT NULL AND category_id = @cloth_id)
   );
 
 -- ---------------------------------------------------------------------
--- STEP 5: Fallback: Move any remaining products under 'Clothing' to 'Upper Body'
+-- STEP 5: Fallback: Move any remaining products under 'Clothing' to 'Topwear'
 -- ---------------------------------------------------------------------
 UPDATE product
-SET category_id = @upper_id
+SET category_id = @top_id
 WHERE @cloth_id IS NOT NULL AND category_id = @cloth_id;
 
 -- ---------------------------------------------------------------------
@@ -135,5 +136,5 @@ SELECT
 FROM product p
 JOIN category c ON p.category_id = c.category_id
 JOIN brand b ON p.brand_id = b.brand_id
-WHERE c.category_type IN ('Upper Body', 'Lower Body')
+WHERE c.category_type IN ('Topwear', 'Bottomwear')
 ORDER BY c.category_type, p.product_id;

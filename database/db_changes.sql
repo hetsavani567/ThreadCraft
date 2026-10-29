@@ -13,3 +13,6 @@
 -- [2026-10-29T10:51:59.352Z] INSERT REVIEW: product_id=12, rating=2, customer="Chintan"
 -- [2026-10-29T11:26:07.254Z] INSERT REVIEW: product_id=3, rating=5, customer="Rahul Mehta"
 -- [2026-10-29T11:26:46.509Z] INSERT REVIEW: product_id=3, rating=5, customer="Rahul Mehta"
+-- [2026-10-29T15:17:02.922Z] INSERT REVIEW: product_id=1, rating=5, customer="Het Savani"
+-- [2026-10-29T15:30:00.000Z] MIGRATION: Divided generic 'Clothing' category into 'Topwear' (ID: 8) and 'Bottomwear' (ID: 9)
+-- [2026-10-29T16:39:59.727Z] DELETE REVIEW: review_id=22, product_id=3
