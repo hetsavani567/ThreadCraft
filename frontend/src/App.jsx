@@ -3,14 +3,30 @@ import Dashboard from "./components/Dashboard.jsx";
 import ProductDetail from "./components/ProductDetail.jsx";
 import AuthPage from "./components/AuthPage.jsx";
 import OrdersHistory from "./components/OrdersHistory.jsx";
+import CartBucketAnimation from "./components/CartBucketAnimation.jsx";
 import { logoutUser, fetchCurrentUser, getAccessToken } from "./services/api.js";
 
 function App() {
   const [currentView, setCurrentView] = useState("store"); // "store" | "auth" | "orders" | "product"
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [selectedProductId, setSelectedProductId] = useState(null);
+  const [productHistory, setProductHistory] = useState([]);
   const [initialCategoryFilter, setInitialCategoryFilter] = useState(null);
   const [initialBrandFilter, setInitialBrandFilter] = useState(null);
+
+  // Cart State persistent in localStorage
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem("threadcraft_cart");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Bucket animation state
+  const [cartAnimationData, setCartAnimationData] = useState(null);
+
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem("threadcraft_customer");
@@ -19,6 +35,15 @@ function App() {
       return null;
     }
   });
+
+  // Sync cart to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("threadcraft_cart", JSON.stringify(cart));
+    } catch (e) {
+      console.warn("Could not save cart to localStorage", e);
+    }
+  }, [cart]);
 
   // Verify active session with backend on load
   useEffect(() => {
@@ -38,8 +63,7 @@ function App() {
     }
   }, []);
 
-  // Handle URL hash navigation (e.g. #login, #signup, #auth, #orders, #tracking)
-  // URL hash navigation
+  // Handle URL hash navigation (e.g. #login, #signup, #auth, #orders, #tracking, #product)
   useEffect(() => {
     function handleHashChange() {
       const fullHash = window.location.hash || "";
@@ -56,7 +80,12 @@ function App() {
       } else if (hashLower.startsWith("#product")) {
         const idMatch = fullHash.match(/[?&]id=([^&]+)/i);
         if (idMatch && idMatch[1]) {
-          setSelectedProductId(idMatch[1]);
+          const pid = idMatch[1];
+          setSelectedProductId(pid);
+          setProductHistory((prev) => {
+            if (prev[prev.length - 1] === pid) return prev;
+            return [...prev, pid];
+          });
         }
         setCurrentView("product");
       } else if (hashLower.startsWith("#category=")) {
@@ -123,8 +152,29 @@ function App() {
 
   function navigateToProduct(productId) {
     setSelectedProductId(productId);
+    setProductHistory((prev) => {
+      if (prev[prev.length - 1] === productId) return prev;
+      return [...prev, productId];
+    });
     window.location.hash = `#product?id=${productId}`;
     setCurrentView("product");
+  }
+
+  // Back Navigation: goes to the previous product if browsing deeper, else previous history or store
+  function handleNavigateBack() {
+    if (productHistory.length > 1) {
+      const newHistory = [...productHistory];
+      newHistory.pop(); // Remove current product
+      const prevProductId = newHistory[newHistory.length - 1];
+      setProductHistory(newHistory);
+      setSelectedProductId(prevProductId);
+      window.location.hash = `#product?id=${prevProductId}`;
+      setCurrentView("product");
+    } else if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      navigateToStore();
+    }
   }
 
   function navigateToCategory(categoryName) {
@@ -141,57 +191,135 @@ function App() {
     window.location.hash = `#brand=${encodeURIComponent(brandName)}`;
   }
 
-  if (currentView === "auth") {
-    return (
-      <AuthPage
-        currentUser={currentUser}
-        onLoginSuccess={handleLoginSuccess}
-        onLogout={handleLogout}
-        onNavigateToStore={navigateToStore}
-      />
+  // Central Add to Cart handler with Bucket Animation
+  function handleAddToCart(product, quantityToAdd = 1) {
+    if (!currentUser) {
+      navigateToAuth();
+      return;
+    }
+
+    const variantId = product.selectedVariant?.variant_id || "default";
+    const cartKey = `${product.id}-${variantId}`;
+
+    setCart((currentCart) => {
+      const existingItem = currentCart.find((item) => item.cartKey === cartKey);
+
+      if (existingItem) {
+        return currentCart.map((item) =>
+          item.cartKey === cartKey
+            ? { ...item, quantity: item.quantity + quantityToAdd }
+            : item
+        );
+      }
+
+      return [
+        ...currentCart,
+        {
+          ...product,
+          cartKey,
+          quantity: quantityToAdd,
+        },
+      ];
+    });
+
+    // Trigger Bucket Animation coming from baseline
+    setCartAnimationData({
+      product,
+      quantity: quantityToAdd,
+      timestamp: Date.now(),
+    });
+  }
+
+  function changeQuantity(cartKey, amount) {
+    setCart((currentCart) =>
+      currentCart
+        .map((item) =>
+          item.cartKey === cartKey
+            ? { ...item, quantity: item.quantity + amount }
+            : item
+        )
+        .filter((item) => item.quantity > 0)
     );
   }
 
-  if (currentView === "orders") {
-    return (
-      <OrdersHistory
-        currentUser={currentUser}
-        onNavigateToStore={navigateToStore}
-        onNavigateToAuth={navigateToAuth}
-        initialSelectedOrderId={selectedOrderId}
-      />
+  function removeFromCart(cartKey) {
+    setCart((currentCart) =>
+      currentCart.filter((item) => item.cartKey !== cartKey)
     );
   }
 
-  if (currentView === "product") {
-    return (
-      <ProductDetail
-        productId={selectedProductId}
-        currentUser={currentUser}
-        onNavigateBack={navigateToStore}
-        onNavigateCategory={navigateToCategory}
-        onNavigateBrand={navigateToBrand}
-        onSelectProduct={navigateToProduct}
-        onNavigateToAuth={navigateToAuth}
-      />
-    );
-  }
+  const cartCount = cart.reduce((total, item) => total + (item.quantity || 1), 0);
+  const cartTotal = cart.reduce(
+    (total, item) => total + (Number(item.price) || 0) * (item.quantity || 1),
+    0
+  );
 
-  // Default store view
   return (
-    <Dashboard
-      currentUser={currentUser}
-      onNavigateToAuth={navigateToAuth}
-      onLogout={handleLogout}
-      onNavigateToOrders={navigateToOrders}
-      onNavigateToProduct={navigateToProduct}
-      initialCategoryFilter={initialCategoryFilter}
-      initialBrandFilter={initialBrandFilter}
-      onClearInitialFilters={() => {
-        setInitialCategoryFilter(null);
-        setInitialBrandFilter(null);
-      }}
-    />
+    <>
+      {currentView === "auth" && (
+        <AuthPage
+          currentUser={currentUser}
+          onLoginSuccess={handleLoginSuccess}
+          onLogout={handleLogout}
+          onNavigateToStore={navigateToStore}
+        />
+      )}
+
+      {currentView === "orders" && (
+        <OrdersHistory
+          currentUser={currentUser}
+          onNavigateToStore={navigateToStore}
+          onNavigateToAuth={navigateToAuth}
+          initialSelectedOrderId={selectedOrderId}
+          onOpenProductDetail={navigateToProduct}
+        />
+      )}
+
+      {currentView === "product" && (
+        <ProductDetail
+          productId={selectedProductId}
+          currentUser={currentUser}
+          cartCount={cartCount}
+          cart={cart}
+          onNavigateBack={handleNavigateBack}
+          onNavigateHome={navigateToStore}
+          onNavigateCategory={navigateToCategory}
+          onNavigateBrand={navigateToBrand}
+          onSelectProduct={navigateToProduct}
+          onAddToCart={handleAddToCart}
+          onNavigateToAuth={navigateToAuth}
+          onNavigateToOrders={navigateToOrders}
+          onLogout={handleLogout}
+        />
+      )}
+
+      {currentView === "store" && (
+        <Dashboard
+          currentUser={currentUser}
+          onNavigateToAuth={navigateToAuth}
+          onLogout={handleLogout}
+          onNavigateToOrders={navigateToOrders}
+          onNavigateToProduct={navigateToProduct}
+          initialCategoryFilter={initialCategoryFilter}
+          initialBrandFilter={initialBrandFilter}
+          onClearInitialFilters={() => {
+            setInitialCategoryFilter(null);
+            setInitialBrandFilter(null);
+          }}
+          cart={cart}
+          setCart={setCart}
+          onAddToCart={handleAddToCart}
+          onChangeQuantity={changeQuantity}
+          onRemoveFromCart={removeFromCart}
+        />
+      )}
+
+      {/* Floating Bottom Baseline Shopping Bucket Animation */}
+      <CartBucketAnimation
+        animationData={cartAnimationData}
+        onAnimationEnd={() => setCartAnimationData(null)}
+      />
+    </>
   );
 }
 

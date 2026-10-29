@@ -2,8 +2,23 @@ import { useEffect, useState } from "react";
 import { fetchProductById, fetchProducts, submitProductReview } from "../services/api";
 import ProductCard from "./ProductCard.jsx";
 import Footer from "./Footer.jsx";
+import Navbar from "./Navbar.jsx";
+import { getProductDiscount } from "../utils/discount.js";
 
-function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCategory, onNavigateBrand, onSelectProduct, onAddToCart, onNavigateToAuth }) {
+function ProductDetail({
+  productId,
+  currentUser,
+  cartCount = 0,
+  onNavigateBack,
+  onNavigateHome,
+  onNavigateCategory,
+  onNavigateBrand,
+  onSelectProduct,
+  onAddToCart,
+  onNavigateToAuth,
+  onNavigateToOrders,
+  onLogout,
+}) {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -79,14 +94,15 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
     const priceToUse = currentVariant?.selling_price || product.price || 0;
 
     if (onAddToCart) {
-      for (let i = 0; i < quantity; i++) {
-        onAddToCart({
+      onAddToCart(
+        {
           ...product,
           price: priceToUse,
           selectedVariant: currentVariant || null,
           selectedColorSize: currentVariant?.color_size || null,
-        });
-      }
+        },
+        quantity
+      );
       setAddSuccessNotice(true);
       setTimeout(() => setAddSuccessNotice(false), 2500);
     }
@@ -203,9 +219,7 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
   const selectedVariant = variants.find((v) => v.variant_id === selectedVariantId) || variants[0];
   const displayPrice = selectedVariant?.selling_price || product.price || 0;
   const isOutOfStock = product.total_stock !== undefined && product.total_stock <= 0;
-  const discountPercent = product.price > 0 && displayPrice < product.price
-    ? Math.round(((product.price - displayPrice) / product.price) * 100)
-    : 0;
+  const { discountPercent, originalPrice, savings } = getProductDiscount(product, displayPrice);
 
   const reviewsList = Array.isArray(product.reviews) ? product.reviews : [];
   const ratingCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
@@ -514,12 +528,37 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
 
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col">
+      {/* Top Main Navigation */}
+      <Navbar
+        cartCount={cartCount}
+        currentUser={currentUser}
+        onNavigateToAuth={onNavigateToAuth}
+        onLogout={onLogout}
+        onNavigateToOrders={onNavigateToOrders}
+        onNavigateToStore={onNavigateHome || onNavigateBack}
+      />
+
       {/* Breadcrumb Navigation with interactive links */}
       <div className="bg-white border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
           <nav className="flex items-center gap-2 text-sm text-stone-500 flex-wrap">
+            {/* Dedicated Previous Page Back Button */}
             <button
+              type="button"
               onClick={onNavigateBack}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs sm:text-sm font-bold text-stone-700 bg-stone-100 hover:bg-stone-200 hover:text-stone-900 transition shadow-2xs active:scale-95 cursor-pointer mr-1"
+              title="Go back to previous page"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+              </svg>
+              <span>Back</span>
+            </button>
+
+            {/* Direct Home Store Link */}
+            <button
+              type="button"
+              onClick={onNavigateHome || onNavigateBack}
               className="hover:text-amber-700 font-medium transition cursor-pointer flex items-center gap-1"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -611,7 +650,7 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
                   </button>
                 )}
                 {discountPercent > 0 && (
-                  <span className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm">
+                  <span className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-black tracking-wide text-white shadow-md backdrop-blur-sm">
                     {discountPercent}% OFF
                   </span>
                 )}
@@ -665,23 +704,27 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
 
                 {/* Price Section */}
                 <div className="bg-stone-50 rounded-2xl p-4 sm:p-5 mb-5 border border-stone-200">
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-3xl font-extrabold text-stone-900">
+                  <div className="flex items-baseline gap-3 flex-wrap">
+                    <span className="text-3xl sm:text-4xl font-black text-stone-900 tracking-tight">
                       ₹{Number(displayPrice).toLocaleString("en-IN")}
                     </span>
-                    {displayPrice !== product.price && product.price > 0 && (
+                    {discountPercent > 0 && originalPrice > displayPrice && (
                       <>
-                        <span className="text-lg text-stone-400 line-through">
-                          ₹{Number(product.price).toLocaleString("en-IN")}
+                        <span className="text-lg text-stone-400 line-through font-medium">
+                          ₹{Number(originalPrice).toLocaleString("en-IN")}
                         </span>
-                        {discountPercent > 0 && (
-                          <span className="text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                            {discountPercent}% OFF
-                          </span>
-                        )}
+                        <span className="text-sm font-black text-emerald-800 bg-emerald-50 border border-emerald-300 px-2.5 py-0.5 rounded-lg">
+                          {discountPercent}% OFF
+                        </span>
                       </>
                     )}
                   </div>
+                  {discountPercent > 0 && savings > 0 && (
+                    <p className="text-xs font-bold text-emerald-700 mt-1.5 flex items-center gap-1.5">
+                      <span>🎉</span>
+                      <span>You save ₹{savings.toLocaleString("en-IN")} ({discountPercent}% discount)</span>
+                    </p>
+                  )}
                   <p className="text-xs text-stone-500 mt-1 font-medium">Inclusive of all GST & taxes</p>
                 </div>
 
@@ -815,7 +858,7 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
                     onClick={onNavigateBack}
                     className="hover:text-amber-700 transition font-medium inline-flex items-center gap-1 cursor-pointer"
                   >
-                    ← Continue Shopping
+                    ← Back to Previous Page
                   </button>
                   <span>100% Genuine & Brand Authentic</span>
                 </div>
@@ -1046,6 +1089,29 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
           )}
         </div>
       </div>
+
+      {/* Floating Bottom Cart Pill (Visible when cart has items) */}
+      {cartCount > 0 && (
+        <button
+          type="button"
+          onClick={() => {
+            if (onNavigateHome) onNavigateHome();
+            window.location.hash = "#cart";
+          }}
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 rounded-full bg-stone-900 text-white px-5 py-3 shadow-2xl hover:bg-amber-700 transition-all active:scale-95 cursor-pointer border border-stone-700"
+          title="Go to Cart"
+        >
+          <div className="relative">
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+            </svg>
+            <span className="absolute -top-2 -right-2 bg-amber-600 text-white text-[10px] font-black h-4 w-4 rounded-full flex items-center justify-center">
+              {cartCount}
+            </span>
+          </div>
+          <span className="text-sm font-bold">View Cart ({cartCount})</span>
+        </button>
+      )}
 
       <Footer />
     </div>
