@@ -289,6 +289,7 @@ export const getGoogleAuthUrl = (req, res) => {
                 "https://www.googleapis.com/auth/userinfo.email",
                 "openid"
             ],
+            redirect_uri: GOOGLE_CALLBACK_URL,
             include_granted_scopes: true,
             prompt: "consent"
         });

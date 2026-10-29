@@ -11,3 +11,5 @@
 -- [2026-10-29T10:44:13.514Z] INSERT REVIEW: product_id=1, rating=5, customer="Kavya Patel"
 -- [2026-10-29T10:45:14.157Z] INSERT REVIEW: product_id=3, rating=3, customer="Het"
 -- [2026-10-29T10:51:59.352Z] INSERT REVIEW: product_id=12, rating=2, customer="Chintan"
+-- [2026-10-29T11:26:07.254Z] INSERT REVIEW: product_id=3, rating=5, customer="Rahul Mehta"
+-- [2026-10-29T11:26:46.509Z] INSERT REVIEW: product_id=3, rating=5, customer="Rahul Mehta"
