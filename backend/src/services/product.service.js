@@ -6,7 +6,8 @@ const formatProduct = (prod) => ({
     rating: Number(prod.rating),
     review_count: Number(prod.review_count),
     total_stock: Number(prod.total_stock),
-    variants: Array.isArray(prod.variants) ? prod.variants : []
+    variants: Array.isArray(prod.variants) ? prod.variants : [],
+    reviews: Array.isArray(prod.reviews) ? prod.reviews : []
 });
 
 export const fetchAllProducts = async (filters) => {
@@ -33,5 +34,10 @@ export const updateProductVariant = async (variantId, data) => {
 export const updateProduct = async (id, data) => {
     return await productModel.updateProduct(id, data);
 };
+
+export const addProductReview = async (productId, data) => {
+    return await productModel.createReview({ product_id: productId, ...data });
+};
+
 
 

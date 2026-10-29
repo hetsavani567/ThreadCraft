@@ -94,7 +94,22 @@ export const getProductById = async (id) => {
                 )
                 FROM product_variant pv
                 WHERE pv.product_id = p.product_id AND pv.is_active = 1
-            ) AS variants
+            ) AS variants,
+            (
+                SELECT JSON_ARRAYAGG(
+                    JSON_OBJECT(
+                        'review_id', rev.review_id,
+                        'cust_id', rev.cust_id,
+                        'customer_name', COALESCE(cust.name, 'Verified Customer'),
+                        'rating', rev.rating,
+                        'comments', rev.comments,
+                        'review_date', DATE_FORMAT(rev.review_date, '%Y-%m-%d')
+                    )
+                )
+                FROM review rev
+                LEFT JOIN customer cust ON rev.cust_id = cust.cust_id
+                WHERE rev.product_id = p.product_id
+            ) AS reviews
         FROM product p
         LEFT JOIN category c ON p.category_id = c.category_id
         LEFT JOIN brand b ON p.brand_id = b.brand_id
@@ -206,4 +221,40 @@ export const updateProduct = async (productId, { product_name, base_price, produ
 
     return rows[0]?.[0] || { updated_product_id: Number(productId), status: "Success" };
 };
+
+export const createReview = async ({ product_id, cust_id, customer_name, rating, comments }) => {
+    let finalCustId = cust_id ? Number(cust_id) : null;
+
+    if (!finalCustId) {
+        if (customer_name && customer_name.trim()) {
+            const trimmedName = customer_name.trim();
+            const [existing] = await pool.query(
+                "SELECT cust_id FROM customer WHERE name = ? LIMIT 1",
+                [trimmedName]
+            );
+            if (existing && existing.length > 0) {
+                finalCustId = existing[0].cust_id;
+            } else {
+                const [insertResult] = await pool.query(
+                    "INSERT INTO customer (name) VALUES (?)",
+                    [trimmedName]
+                );
+                finalCustId = insertResult.insertId;
+            }
+        } else {
+            finalCustId = 1;
+        }
+    }
+
+    const cleanRating = Math.min(5, Math.max(1, Number(rating) || 5));
+    const cleanComments = comments ? String(comments).trim() : "";
+
+    const [rows] = await pool.query(
+        "CALL sp_insert_review(?, ?, ?, ?, @new_review_id)",
+        [Number(product_id), finalCustId, cleanRating, cleanComments]
+    );
+
+    return rows[0]?.[0] || { review_id: null, status: "Review submitted successfully" };
+};
+
 

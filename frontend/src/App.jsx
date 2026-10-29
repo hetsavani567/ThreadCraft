@@ -167,6 +167,7 @@ function App() {
     return (
       <ProductDetail
         productId={selectedProductId}
+        currentUser={currentUser}
         onNavigateBack={navigateToStore}
         onNavigateCategory={navigateToCategory}
         onNavigateBrand={navigateToBrand}
