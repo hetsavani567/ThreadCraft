@@ -701,6 +701,7 @@ function Dashboard({
                       setEditingVariantProduct({ product: prod, variant })
                     }
                     onSelectCategory={handleSelectCategory}
+                    onSelectProduct={onNavigateToProduct}
                   />
                 ))}
               </div>
@@ -712,6 +713,7 @@ function Dashboard({
                 <CategoryScrollView
                   key={catName}
                   categoryName={catName}
+                  onSelectProduct={onNavigateToProduct}
                   products={categorizedProducts[catName] || []}
                   onAddToCart={handleAddToCart}
                   isEmployee={isEmployee}

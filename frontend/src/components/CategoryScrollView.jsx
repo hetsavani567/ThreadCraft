@@ -76,6 +76,7 @@ function CategoryScrollView({
   onAdjustStock,
   onEditVariant,
   onSelectCategory,
+  onSelectProduct,
 }) {
   const scrollContainerRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -221,6 +222,7 @@ function CategoryScrollView({
                 onAdjustStock={onAdjustStock}
                 onEditVariant={onEditVariant}
                 onSelectCategory={onSelectCategory}
+                onSelectProduct={onSelectProduct}
               />
             </div>
           ))}

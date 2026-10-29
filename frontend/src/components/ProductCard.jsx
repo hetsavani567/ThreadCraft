@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { getProductDiscount } from "../utils/discount.js";
 
-function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelectCategory }) {
+function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelectCategory, onSelectProduct }) {
   const [imgError, setImgError] = useState(false);
 
   const variants =
@@ -42,6 +42,8 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
   function handleCardClick() {
     if (isEmployee && onEditVariant) {
       onEditVariant(product, selectedVariant);
+    } else if (onSelectProduct) {
+      onSelectProduct(product.id);
     } else {
       // Navigate to product detail page via hash
       window.location.hash = `#product?id=${product.id}`;
