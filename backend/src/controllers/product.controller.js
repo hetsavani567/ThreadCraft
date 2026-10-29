@@ -315,3 +315,50 @@ export const updateProduct = async (req, res, next) => {
         });
     }
 };
+
+export const addReview = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { rating, comments, cust_id, customer_name } = req.body;
+
+        const parsedProductId = Number(id);
+        if (!parsedProductId || isNaN(parsedProductId)) {
+            return res.status(400).json({ message: "Invalid product ID" });
+        }
+
+        const cleanRating = Number(rating);
+        if (!cleanRating || cleanRating < 1 || cleanRating > 5) {
+            return res.status(400).json({ message: "Rating must be a number between 1 and 5" });
+        }
+
+        const result = await productService.addProductReview(parsedProductId, {
+            cust_id: cust_id || req.user?.cust_id || req.user?.id || null,
+            customer_name: customer_name || req.user?.name || "Customer",
+            rating: cleanRating,
+            comments: comments || ""
+        });
+
+        logDbChange("INSERT REVIEW", `product_id=${parsedProductId}, rating=${cleanRating}, customer="${customer_name || 'Customer'}"`);
+
+        const updatedProduct = await productService.fetchProductById(parsedProductId);
+
+        res.status(201).json({
+            message: "Review submitted successfully",
+            result,
+            product: updatedProduct
+        });
+    } catch (error) {
+        console.error("Database error in addReview:", error);
+        if (error.sqlState === "45000") {
+            return res.status(400).json({
+                message: error.sqlMessage || error.message,
+                error: error.message
+            });
+        }
+        res.status(500).json({
+            message: "Failed to submit review: " + (error.sqlMessage || error.message),
+            error: error.message
+        });
+    }
+};
+

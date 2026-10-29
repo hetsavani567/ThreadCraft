@@ -7,3 +7,7 @@
 -- ============================================================
 -- Format: [ISO_TIMESTAMP] ACTION: details
 -- ============================================================
+-- [2026-10-29T10:30:22.202Z] INSERT REVIEW: product_id=1, rating=5, customer="Ananya Roy"
+-- [2026-10-29T10:44:13.514Z] INSERT REVIEW: product_id=1, rating=5, customer="Kavya Patel"
+-- [2026-10-29T10:45:14.157Z] INSERT REVIEW: product_id=3, rating=3, customer="Het"
+-- [2026-10-29T10:51:59.352Z] INSERT REVIEW: product_id=12, rating=2, customer="Chintan"
