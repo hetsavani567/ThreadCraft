@@ -4,36 +4,64 @@ import ProductCard from "./ProductCard.jsx";
 // Helper for category-specific icon
 function getCategoryIcon(name = "") {
   const lower = name.toLowerCase();
-  if (lower.includes("upper") || lower.includes("cloth") || lower.includes("shirt") || lower.includes("apparel") || lower.includes("top")) {
+  if (lower.includes("top") || lower.includes("shirt") || lower.includes("upper") || lower.includes("cloth") || lower.includes("tee")) {
     return (
-      <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+      <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l-4.5 3 2.25 4.5 2.5-1.5V20.25h11v-9.75l2.5 1.5 2.25-4.5-4.5-3a3 3 0 00-4.5 2.25 3 3 0 00-4.5-2.25z" />
       </svg>
     );
   }
-  if (lower.includes("lower") || lower.includes("pant") || lower.includes("jean") || lower.includes("trouser") || lower.includes("bottom")) {
+  if (lower.includes("bottom") || lower.includes("pant") || lower.includes("jean") || lower.includes("trouser") || lower.includes("lower") || lower.includes("short")) {
     return (
-      <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6 3h12v4l-2 14h-3.5L12 11l-.5 10H8L6 7V3z" />
+      <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 3.75h12v3.75l-1.5 12.75h-3.25L12 11.25l-1.25 9H7.5L6 7.5V3.75z" />
       </svg>
     );
   }
-  if (lower.includes("foot") || lower.includes("shoe")) {
+  if (lower.includes("winter") || lower.includes("jacket") || lower.includes("coat") || lower.includes("sweater")) {
     return (
-      <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18m-6-15l12 12m0-12L6 18M3 12h18" />
+      </svg>
+    );
+  }
+  if (lower.includes("formal") || lower.includes("suit") || lower.includes("blazer")) {
+    return (
+      <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5l2 4-2 9-2-9 2-4zm-5 0l3 3m7-3l-3 3M4.5 7.5l4 12h7l4-12" />
+      </svg>
+    );
+  }
+  if (lower.includes("active") || lower.includes("gym") || lower.includes("sport") || lower.includes("athletic")) {
+    return (
+      <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    );
+  }
+  if (lower.includes("ethnic") || lower.includes("kurta") || lower.includes("tradition")) {
+    return (
+      <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+      </svg>
+    );
+  }
+  if (lower.includes("foot") || lower.includes("shoe") || lower.includes("sneaker") || lower.includes("boot")) {
+    return (
+      <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
       </svg>
     );
   }
-  if (lower.includes("access") || lower.includes("cap") || lower.includes("bag")) {
+  if (lower.includes("access") || lower.includes("cap") || lower.includes("bag") || lower.includes("belt") || lower.includes("wallet")) {
     return (
-      <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H4.5a1.5 1.5 0 01-1.5-1.5v-8.25M21 11.25l-9-6-9 6m18 0l-9 6-9-6" />
       </svg>
     );
   }
   return (
-    <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+    <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
     </svg>

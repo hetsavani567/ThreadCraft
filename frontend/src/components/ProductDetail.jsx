@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { fetchProductById, fetchProducts, submitProductReview } from "../services/api";
+import { fetchProductById, fetchProducts, submitProductReview, deleteProductReview } from "../services/api";
 import ProductCard from "./ProductCard.jsx";
 import Footer from "./Footer.jsx";
 
 function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCategory, onNavigateBrand, onSelectProduct, onAddToCart, onNavigateToAuth }) {
+  const isEmployee = currentUser?.role === "employee";
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,7 +16,7 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
   const [loadingRelated, setLoadingRelated] = useState(false);
   const [addSuccessNotice, setAddSuccessNotice] = useState(false);
 
-  // Review Form States
+  // Review Form & Moderation States
   const [reviewFormOpen, setReviewFormOpen] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewHoverRating, setReviewHoverRating] = useState(0);
@@ -24,6 +25,8 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewSubmitSuccess, setReviewSubmitSuccess] = useState(false);
   const [reviewSubmitError, setReviewSubmitError] = useState(null);
+  const [deletingReviewId, setDeletingReviewId] = useState(null);
+  const [reviewDeleteNotice, setReviewDeleteNotice] = useState(null);
 
   useEffect(() => {
     if (currentUser?.name && !reviewName) {
@@ -152,6 +155,49 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
     }
   }
 
+  async function handleDeleteReview(reviewId) {
+    if (!reviewId || !product) return;
+    const confirmDelete = window.confirm(
+      "Are you sure you want to remove this customer review? This staff action cannot be undone."
+    );
+    if (!confirmDelete) return;
+
+    setDeletingReviewId(reviewId);
+    try {
+      const res = await deleteProductReview(product.id, reviewId);
+      if (res?.product) {
+        setProduct(res.product);
+      } else {
+        setProduct((prev) => {
+          const updatedReviews = (prev.reviews || []).filter(
+            (r) => Number(r.review_id) !== Number(reviewId)
+          );
+          const totalRating = updatedReviews.reduce(
+            (sum, r) => sum + Number(r.rating || 5),
+            0
+          );
+          const newAvg =
+            updatedReviews.length > 0
+              ? (totalRating / updatedReviews.length).toFixed(1)
+              : "5.0";
+          return {
+            ...prev,
+            reviews: updatedReviews,
+            review_count: updatedReviews.length,
+            rating: newAvg,
+          };
+        });
+      }
+      setReviewDeleteNotice("Review removed successfully (Staff Action).");
+      setTimeout(() => setReviewDeleteNotice(null), 4000);
+    } catch (err) {
+      console.error("Failed to remove review:", err);
+      alert("Failed to remove review: " + (err.message || "Unknown error"));
+    } finally {
+      setDeletingReviewId(null);
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
@@ -221,12 +267,19 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
       {/* Header & Write Review Action */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-stone-200">
         <div>
-          <h3 className="text-lg font-black text-stone-900 flex items-center gap-2">
-            <span>Customer Reviews & Ratings</span>
-            <span className="text-xs bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full font-bold">
-              {totalReviewsCount} {totalReviewsCount === 1 ? "Review" : "Reviews"}
-            </span>
-          </h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-lg font-black text-stone-900 flex items-center gap-2">
+              <span>Customer Reviews & Ratings</span>
+              <span className="text-xs bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full font-bold">
+                {totalReviewsCount} {totalReviewsCount === 1 ? "Review" : "Reviews"}
+              </span>
+            </h3>
+            {isEmployee && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100/90 border border-amber-300 px-2.5 py-0.5 text-xs font-bold text-amber-900 shadow-2xs">
+                <span>👔</span> Staff Review Moderation
+              </span>
+            )}
+          </div>
           <p className="text-xs text-stone-500 mt-0.5">
             Real feedback from verified ThreadCraft customers
           </p>
@@ -241,6 +294,17 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
           <span>{reviewFormOpen ? "Close Form" : "Write a Review"}</span>
         </button>
       </div>
+
+      {/* Staff Review Removal Notice Banner */}
+      {reviewDeleteNotice && (
+        <div className="rounded-xl bg-amber-50 border border-amber-300 p-4 flex items-center gap-3 text-amber-900 animate-fade-in shadow-xs">
+          <span className="text-xl">🗑️</span>
+          <div>
+            <p className="text-sm font-bold">{reviewDeleteNotice}</p>
+            <p className="text-xs text-amber-700">The product review was removed from the database.</p>
+          </div>
+        </div>
+      )}
 
       {/* Success Alert Banner */}
       {reviewSubmitSuccess && (
@@ -469,20 +533,47 @@ function ProductDetail({ productId, currentUser, onNavigateBack, onNavigateCateg
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <svg
-                        key={s}
-                        className={`h-4 w-4 ${
-                          Number(rev.rating) >= s
-                            ? "fill-amber-400 text-amber-400"
-                            : "fill-stone-200 text-stone-300"
-                        }`}
-                        viewBox="0 0 20 20"
+                  <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <svg
+                          key={s}
+                          className={`h-4 w-4 ${
+                            Number(rev.rating) >= s
+                              ? "fill-amber-400 text-amber-400"
+                              : "fill-stone-200 text-stone-300"
+                          }`}
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      ))}
+                    </div>
+
+                    {/* Employee Only: Remove / Delete Review Option */}
+                    {isEmployee && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteReview(rev.review_id)}
+                        disabled={deletingReviewId === rev.review_id}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 px-2.5 py-1 text-xs font-bold text-red-700 transition active:scale-95 disabled:opacity-50 cursor-pointer shadow-2xs"
+                        title="Staff Employee Action: Remove customer review"
                       >
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                    ))}
+                        {deletingReviewId === rev.review_id ? (
+                          <>
+                            <div className="h-3 w-3 animate-spin rounded-full border-2 border-red-700 border-t-transparent" />
+                            <span>Removing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="h-3.5 w-3.5 text-red-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            <span>Remove Review</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
 

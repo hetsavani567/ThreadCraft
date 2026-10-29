@@ -169,6 +169,12 @@ export async function submitProductReview(productId, reviewData) {
   });
 }
 
+export async function deleteProductReview(productId, reviewId) {
+  return apiRequest(`/products/${productId}/reviews/${reviewId}`, {
+    method: "DELETE",
+  });
+}
+
 export async function fetchHealth() {
   return apiRequest("/health");
 }

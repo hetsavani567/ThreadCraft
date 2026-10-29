@@ -14,6 +14,16 @@ USE retail_db;
 -- 1. INSERT NEW CATEGORIES
 -- =====================================================================
 INSERT INTO category (category_type, description)
+SELECT 'Topwear', 'T-shirts, shirts, jackets, hoodies, sweaters, and top apparel'
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM category WHERE category_type = 'Topwear');
+
+INSERT INTO category (category_type, description)
+SELECT 'Bottomwear', 'Jeans, pants, trousers, chinos, shorts, and bottom apparel'
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM category WHERE category_type = 'Bottomwear');
+
+INSERT INTO category (category_type, description)
 SELECT 'Winterwear', 'Warm jackets, hoodies, coats, and thermals for cold seasons'
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM category WHERE category_type = 'Winterwear');
@@ -77,39 +87,17 @@ WHERE NOT EXISTS (SELECT 1 FROM brand WHERE brand_name = 'Tommy Hilfiger');
 -- 3. INSERT PRODUCTS ACROSS ALL CATEGORIES
 -- =====================================================================
 
--- ----- CATEGORY: Clothing -----
+-- ----- CATEGORY: Topwear -----
 INSERT INTO product (product_name, base_price, product_description, Image_URL, category_id, brand_id)
 SELECT 
     'Classic Denim Trucker Jacket', 
     3499.00, 
     'Timeless trucker denim jacket in rugged indigo wash with reinforced stitching and metal shank buttons', 
     'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=700&q=80',
-    (SELECT category_id FROM category WHERE category_type = 'Clothing' LIMIT 1),
+    (SELECT category_id FROM category WHERE category_type = 'Topwear' LIMIT 1),
     (SELECT brand_id FROM brand WHERE brand_name = 'Levi''s' LIMIT 1)
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM product WHERE product_name = 'Classic Denim Trucker Jacket');
-
-INSERT INTO product (product_name, base_price, product_description, Image_URL, category_id, brand_id)
-SELECT 
-    'Slim Fit Chino Trousers', 
-    1899.00, 
-    'Sleek tailored stretch-cotton chinos suitable for casual Fridays and smart everyday wear', 
-    'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=700&q=80',
-    (SELECT category_id FROM category WHERE category_type = 'Clothing' LIMIT 1),
-    (SELECT brand_id FROM brand WHERE brand_name = 'Zara' LIMIT 1)
-FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM product WHERE product_name = 'Slim Fit Chino Trousers');
-
-INSERT INTO product (product_name, base_price, product_description, Image_URL, category_id, brand_id)
-SELECT 
-    '511 Slim Fit Stretch Jeans', 
-    2999.00, 
-    'Modern slim-cut denim jeans with added stretch for all-day mobility and classic five-pocket styling', 
-    'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=700&q=80',
-    (SELECT category_id FROM category WHERE category_type = 'Clothing' LIMIT 1),
-    (SELECT brand_id FROM brand WHERE brand_name = 'Levi''s' LIMIT 1)
-FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM product WHERE product_name = '511 Slim Fit Stretch Jeans');
 
 INSERT INTO product (product_name, base_price, product_description, Image_URL, category_id, brand_id)
 SELECT 
@@ -117,7 +105,7 @@ SELECT
     2799.00, 
     'Pure breathable cotton button-down casual shirt with embroidered flag logo on chest', 
     'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=700&q=80',
-    (SELECT category_id FROM category WHERE category_type = 'Clothing' LIMIT 1),
+    (SELECT category_id FROM category WHERE category_type = 'Topwear' LIMIT 1),
     (SELECT brand_id FROM brand WHERE brand_name = 'Tommy Hilfiger' LIMIT 1)
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM product WHERE product_name = 'Oxford Cotton Casual Shirt');
@@ -128,10 +116,33 @@ SELECT
     899.00, 
     'Soft combed organic cotton t-shirt featuring modern minimalist typography art print', 
     'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=700&q=80',
-    (SELECT category_id FROM category WHERE category_type = 'Clothing' LIMIT 1),
+    (SELECT category_id FROM category WHERE category_type = 'Topwear' LIMIT 1),
     (SELECT brand_id FROM brand WHERE brand_name = 'H&M' LIMIT 1)
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM product WHERE product_name = 'Relaxed Fit Graphic Tee');
+
+-- ----- CATEGORY: Bottomwear -----
+INSERT INTO product (product_name, base_price, product_description, Image_URL, category_id, brand_id)
+SELECT 
+    'Slim Fit Chino Trousers', 
+    1899.00, 
+    'Sleek tailored stretch-cotton chinos suitable for casual Fridays and smart everyday wear', 
+    'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=700&q=80',
+    (SELECT category_id FROM category WHERE category_type = 'Bottomwear' LIMIT 1),
+    (SELECT brand_id FROM brand WHERE brand_name = 'Zara' LIMIT 1)
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM product WHERE product_name = 'Slim Fit Chino Trousers');
+
+INSERT INTO product (product_name, base_price, product_description, Image_URL, category_id, brand_id)
+SELECT 
+    '511 Slim Fit Stretch Jeans', 
+    2999.00, 
+    'Modern slim-cut denim jeans with added stretch for all-day mobility and classic five-pocket styling', 
+    'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=700&q=80',
+    (SELECT category_id FROM category WHERE category_type = 'Bottomwear' LIMIT 1),
+    (SELECT brand_id FROM brand WHERE brand_name = 'Levi''s' LIMIT 1)
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM product WHERE product_name = '511 Slim Fit Stretch Jeans');
 
 -- ----- CATEGORY: Footwear -----
 INSERT INTO product (product_name, base_price, product_description, Image_URL, category_id, brand_id)
