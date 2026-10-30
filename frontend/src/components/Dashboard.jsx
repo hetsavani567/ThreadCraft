@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { apiRequest, fetchProducts, fetchCategories } from "../services/api";
+import { apiRequest, fetchProducts, fetchCategories, updateProductStock } from "../services/api";
 import Navbar from "./Navbar.jsx";
 import ProductCard from "./ProductCard.jsx";
 import CategoryScrollView from "./CategoryScrollView.jsx";
@@ -70,8 +70,9 @@ function Dashboard({
 
   const isEmployee = currentUser?.role === "employee";
 
-  // Employee live stock update handler (purely client-side state)
-  function handleUpdateStock(productId, delta) {
+  // Employee live stock update handler - Persists directly to MySQL database
+  async function handleUpdateStock(productId, delta) {
+    // 1. Optimistic UI update so the interface is instantaneous
     setProducts((prev) =>
       prev.map((p) =>
         p.id === productId
@@ -79,6 +80,31 @@ function Dashboard({
           : p
       )
     );
+
+    // 2. Persist to MySQL database via API
+    try {
+      const branchId = currentUser?.branch_id || 1;
+      const res = await updateProductStock(productId, { delta, branch_id: branchId });
+      if (res?.success && res.total_stock !== undefined) {
+        // Sync with exact database total_stock
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === productId ? { ...p, total_stock: res.total_stock } : p
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Failed to persist stock update in MySQL:", err);
+      // Revert on failure
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId
+            ? { ...p, total_stock: Math.max(0, (p.total_stock || 0) - delta) }
+            : p
+        )
+      );
+      alert(`Could not save stock update to MySQL database: ${err.message}`);
+    }
   }
 
   // Fetch products and categories from MySQL database

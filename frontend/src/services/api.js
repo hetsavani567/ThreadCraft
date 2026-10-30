@@ -155,6 +155,13 @@ export async function updateProductVariant(variantId, variantData) {
   });
 }
 
+export async function updateProductStock(productId, stockData = {}) {
+  return apiRequest(`/products/${productId}/stock`, {
+    method: "PATCH",
+    body: JSON.stringify(stockData),
+  });
+}
+
 export const updateProduct = async (productId, productData) => {
   return apiRequest(`/products/${productId}`, {
     method: "PUT",

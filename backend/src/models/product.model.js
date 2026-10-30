@@ -269,4 +269,94 @@ export const deleteReview = async (reviewId) => {
     }
 };
 
+export const updateProductStock = async (productId, { delta, quantity, branch_id = 1, variant_id }) => {
+    const cleanProductId = Number(productId);
+    const cleanBranchId = Number(branch_id) || 1;
+
+    // 1. Determine target variant
+    let targetVariantId = variant_id ? Number(variant_id) : null;
+    if (!targetVariantId) {
+        const [variants] = await pool.query(
+            "SELECT variant_id FROM product_variant WHERE product_id = ? AND is_active = 1 ORDER BY variant_id ASC LIMIT 1",
+            [cleanProductId]
+        );
+        if (variants.length > 0) {
+            targetVariantId = variants[0].variant_id;
+        } else {
+            const [anyVariants] = await pool.query(
+                "SELECT variant_id FROM product_variant WHERE product_id = ? ORDER BY variant_id ASC LIMIT 1",
+                [cleanProductId]
+            );
+            if (anyVariants.length > 0) {
+                targetVariantId = anyVariants[0].variant_id;
+            } else {
+                const [newVar] = await pool.query(
+                    "INSERT INTO product_variant (product_id, color_size, selling_price, is_active) VALUES (?, 'Standard', (SELECT base_price FROM product WHERE product_id = ?), 1)",
+                    [cleanProductId, cleanProductId]
+                );
+                targetVariantId = newVar.insertId;
+            }
+        }
+    }
+
+    // 2. Check existing inventory record for this variant and branch
+    const [invRows] = await pool.query(
+        "SELECT inventory_id, quantity, reorder_level FROM inventory WHERE variant_id = ? AND branch_id = ? LIMIT 1",
+        [targetVariantId, cleanBranchId]
+    );
+
+    let newQty = 0;
+    if (invRows.length > 0) {
+        const currentQty = Number(invRows[0].quantity) || 0;
+        if (quantity !== undefined && quantity !== null) {
+            newQty = Math.max(0, Number(quantity));
+        } else {
+            newQty = Math.max(0, currentQty + (Number(delta) || 0));
+        }
+
+        try {
+            await pool.query(
+                "CALL sp_update_inventory_stock(?, ?, ?)",
+                [invRows[0].inventory_id, newQty, invRows[0].reorder_level || 10]
+            );
+        } catch (spErr) {
+            console.warn("Notice: sp_update_inventory_stock fallback:", spErr.message);
+            await pool.query(
+                "UPDATE inventory SET quantity = ?, last_updated = CURRENT_TIMESTAMP WHERE inventory_id = ?",
+                [newQty, invRows[0].inventory_id]
+            );
+        }
+    } else {
+        if (quantity !== undefined && quantity !== null) {
+            newQty = Math.max(0, Number(quantity));
+        } else {
+            newQty = Math.max(0, Number(delta) || 0);
+        }
+
+        await pool.query(
+            "INSERT INTO inventory (variant_id, branch_id, quantity, reorder_level) VALUES (?, ?, ?, 10)",
+            [targetVariantId, cleanBranchId, newQty]
+        );
+    }
+
+    // 3. Query the updated total stock across all variants for this product
+    const [stockRows] = await pool.query(
+        `SELECT COALESCE(SUM(inv.quantity), 0) AS total_stock
+         FROM inventory inv
+         JOIN product_variant pv ON inv.variant_id = pv.variant_id
+         WHERE pv.product_id = ?`,
+        [cleanProductId]
+    );
+
+    const updatedTotalStock = Number(stockRows[0]?.total_stock) || 0;
+
+    return {
+        product_id: cleanProductId,
+        variant_id: targetVariantId,
+        branch_id: cleanBranchId,
+        total_stock: updatedTotalStock,
+        new_quantity: newQty
+    };
+};
+
 

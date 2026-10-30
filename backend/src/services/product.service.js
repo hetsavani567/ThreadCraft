@@ -87,5 +87,9 @@ export const removeProductReview = async (reviewId) => {
     return await productModel.deleteReview(reviewId);
 };
 
+export const adjustProductStock = async (productId, data) => {
+    return await productModel.updateProductStock(productId, data);
+};
+
 
 
