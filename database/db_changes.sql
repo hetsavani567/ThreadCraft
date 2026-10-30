@@ -16,3 +16,13 @@
 -- [2026-10-29T15:17:02.922Z] INSERT REVIEW: product_id=1, rating=5, customer="Het Savani"
 -- [2026-10-29T15:30:00.000Z] MIGRATION: Divided generic 'Clothing' category into 'Topwear' (ID: 8) and 'Bottomwear' (ID: 9)
 -- [2026-10-29T16:39:59.727Z] DELETE REVIEW: review_id=22, product_id=3
+-- [2026-10-30T03:29:17.193Z] UPDATE INVENTORY: product_id=1, delta=5, branch_id=1, new_total_stock=146
+-- [2026-10-30T03:29:17.411Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=141
+-- [2026-10-30T03:51:14.549Z] UPDATE INVENTORY: product_id=1, delta=5, branch_id=1, new_total_stock=146
+-- [2026-10-30T03:51:25.932Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=141
+-- [2026-10-30T03:51:26.235Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=136
+-- [2026-10-30T03:51:26.542Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=131
+-- [2026-10-30T03:51:30.598Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=126
+-- [2026-10-30T03:51:32.482Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=121
+-- [2026-10-30T03:51:33.198Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=116
+-- [2026-10-30T03:51:34.427Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=111

@@ -403,3 +403,41 @@ export const deleteReview = async (req, res) => {
     }
 };
 
+export const updateStock = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { delta, quantity, branch_id, variant_id } = req.body;
+        const parsedProductId = Number(id);
+
+        if (!parsedProductId || isNaN(parsedProductId) || parsedProductId <= 0) {
+            return res.status(400).json({ success: false, message: "Invalid product ID supplied." });
+        }
+
+        if (delta === undefined && quantity === undefined) {
+            return res.status(400).json({ success: false, message: "Either 'delta' or 'quantity' is required to adjust stock." });
+        }
+
+        const result = await productService.adjustProductStock(parsedProductId, {
+            delta: delta !== undefined ? Number(delta) : undefined,
+            quantity: quantity !== undefined ? Number(quantity) : undefined,
+            branch_id: branch_id || req.user?.branch_id || 1,
+            variant_id: variant_id ? Number(variant_id) : undefined
+        });
+
+        logDbChange("UPDATE INVENTORY", `product_id=${parsedProductId}, delta=${delta}, branch_id=${result.branch_id}, new_total_stock=${result.total_stock}`);
+
+        res.status(200).json({
+            success: true,
+            message: `Stock updated successfully to ${result.total_stock} units in MySQL database`,
+            ...result
+        });
+    } catch (error) {
+        console.error("Database error in updateStock:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to update stock in database: " + (error.sqlMessage || error.message),
+            error: error.message
+        });
+    }
+};
+

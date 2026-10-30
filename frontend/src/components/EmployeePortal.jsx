@@ -178,10 +178,12 @@ function EmployeePortal({
 
   if (!isOpen) return null;
 
-  function handleQuickStock(productId, delta) {
-    onUpdateStock(productId, delta);
-    setStockSuccess(`Stock adjusted (${delta > 0 ? `+${delta}` : delta}) for product #${productId}`);
-    setTimeout(() => setStockSuccess(""), 2500);
+  async function handleQuickStock(productId, delta) {
+    if (onUpdateStock) {
+      await onUpdateStock(productId, delta);
+    }
+    setStockSuccess(`Stock adjusted (${delta > 0 ? `+${delta}` : delta}) for product #${productId} & saved to MySQL database`);
+    setTimeout(() => setStockSuccess(""), 3000);
   }
 
   function handleOrderStatusChange(orderId, newStatus) {

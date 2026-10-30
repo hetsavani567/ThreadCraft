@@ -1,10 +1,13 @@
 import { Router } from "express";
-import { getProducts, getProductById, createProduct, updateVariant, updateProduct, addReview, deleteReview } from "../controllers/product.controller.js";
+import { getProducts, getProductById, createProduct, updateVariant, updateProduct, addReview, deleteReview, updateStock } from "../controllers/product.controller.js";
 
 const router = Router();
 
 router.get("/", getProducts);
 router.post("/", createProduct);
+router.patch("/:id/stock", updateStock);
+router.post("/:id/stock", updateStock);
+router.put("/:id/stock", updateStock);
 router.put("/variants/:variantId", updateVariant);
 router.patch("/variants/:variantId", updateVariant);
 router.put("/:id", updateProduct);
