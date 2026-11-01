@@ -9,7 +9,7 @@ import {
   logoutAllDevices,
 } from "../services/api";
 
-function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) {
+function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout, onNavigateAfterLogin, onCancelAuth }) {
   const [mode, setMode] = useState("signin");
   const [showPassword, setShowPassword] = useState(false);
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
@@ -151,7 +151,11 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
         setSuccessMessage(response.message || `Welcome back, ${response.user.name}!`);
         setTimeout(() => {
           onLoginSuccess(response.user);
-          onNavigateToStore();
+          if (onNavigateAfterLogin) {
+            onNavigateAfterLogin(response.user);
+          } else {
+            onNavigateToStore();
+          }
         }, 600);
       } else {
         setFormErrors({ submit: response.message || "Failed to sign in." });
@@ -225,7 +229,11 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
         setSuccessMessage(response.message || `Account created successfully!`);
         setTimeout(() => {
           onLoginSuccess(response.user);
-          onNavigateToStore();
+          if (onNavigateAfterLogin) {
+            onNavigateAfterLogin(response.user);
+          } else {
+            onNavigateToStore();
+          }
         }, 600);
       } else {
         setFormErrors({ submit: response.message || "Registration failed." });
@@ -285,7 +293,11 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
           setSuccessMessage(`Signed in as ${user.name} via Google`);
           setTimeout(() => {
             onLoginSuccess(user);
-            onNavigateToStore();
+            if (onNavigateAfterLogin) {
+              onNavigateAfterLogin(user);
+            } else {
+              onNavigateToStore();
+            }
           }, 500);
         }
       };
@@ -428,10 +440,10 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
     <div className="min-h-screen bg-stone-50 px-4 py-8 flex flex-col items-center justify-center">
       <div className="mb-5 flex w-full max-w-md items-center justify-between">
         <button
-          onClick={onNavigateToStore}
-          className="text-sm font-medium text-stone-600 hover:text-stone-900 transition flex items-center gap-1"
+          onClick={onCancelAuth || onNavigateToStore}
+          className="text-sm font-medium text-stone-600 hover:text-stone-900 transition flex items-center gap-1 cursor-pointer"
         >
-          ← Back to Store
+          ← Back
         </button>
         <button
           onClick={onNavigateToStore}

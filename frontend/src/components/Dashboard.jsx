@@ -330,7 +330,13 @@ function Dashboard({
   function handleAddToCart(product, quantity = 1) {
     if (!currentUser) {
       if (onNavigateToAuth) {
-        onNavigateToAuth();
+        onNavigateToAuth({
+          returnHash: window.location.hash || `#product?id=${product.id}`,
+          returnProductId: product.id,
+          pendingItem: product,
+          quantity,
+          isBuyNow: false,
+        });
       } else {
         window.location.hash = "#auth";
       }

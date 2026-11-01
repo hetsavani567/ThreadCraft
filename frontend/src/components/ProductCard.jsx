@@ -91,7 +91,7 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
             </div>
           )}
 
-          {/* Badges: Brand, Category, Discount */}
+          {/* Badges: Brand, Discount */}
           <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1 items-center">
             {discountPercent > 0 && (
               <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black tracking-wide text-white shadow-xs backdrop-blur-sm">
@@ -103,24 +103,6 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
               <span className="rounded-full bg-stone-900/80 px-2 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase backdrop-blur-sm">
                 {product.brand}
               </span>
-            )}
-
-            {product.category && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  if (onSelectCategory) {
-                    e.stopPropagation();
-                    onSelectCategory(product.category);
-                  }
-                }}
-                className={`rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-stone-700 shadow-xs backdrop-blur-sm transition ${
-                  onSelectCategory ? "hover:bg-amber-100 hover:text-amber-900 cursor-pointer" : ""
-                }`}
-                title={onSelectCategory ? `View ${product.category} in Grid View` : product.category}
-              >
-                {product.category}
-              </button>
             )}
           </div>
 
