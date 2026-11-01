@@ -12,6 +12,13 @@ export const getAllProducts = async ({ category, brand, search } = {}) => {
                 ORDER BY pv_min.variant_id ASC
                 LIMIT 1
             ), 0.0) AS price,
+            COALESCE((
+                SELECT pv_min.discount_percent
+                FROM product_variant pv_min
+                WHERE pv_min.product_id = p.product_id AND pv_min.is_active = 1
+                ORDER BY pv_min.variant_id ASC
+                LIMIT 1
+            ), 0) AS discount_percent,
             p.product_description AS description,
             p.Image_URL AS image,
             p.category_id,
@@ -82,6 +89,13 @@ export const getProductById = async (id) => {
                 ORDER BY pv_min.variant_id ASC
                 LIMIT 1
             ), 0.0) AS price,
+            COALESCE((
+                SELECT pv_min.discount_percent
+                FROM product_variant pv_min
+                WHERE pv_min.product_id = p.product_id AND pv_min.is_active = 1
+                ORDER BY pv_min.variant_id ASC
+                LIMIT 1
+            ), 0) AS discount_percent,
             p.product_description AS description,
             p.Image_URL AS image,
             p.category_id,

@@ -535,16 +535,28 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
                       </span>
                     )}
                   </div>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-sm font-black text-stone-900">
-                      ₹{Number(sellingPrice).toLocaleString("en-IN")}
-                    </span>
-                    {Number(discountPercent) > 0 && (
-                      <span className="text-xs text-stone-400 line-through font-medium">
-                        ₹{Math.round(Number(sellingPrice) / (1 - Number(discountPercent) / 100)).toLocaleString("en-IN")}
-                      </span>
-                    )}
-                  </div>
+                  {(() => {
+                    const base = Number(sellingPrice) || 0;
+                    const disc = Number(discountPercent) || 0;
+                    const finalPayable = disc > 0 ? Math.round(base * (1 - disc / 100)) : base;
+                    return (
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-sm font-black text-stone-900">
+                          ₹{finalPayable.toLocaleString("en-IN")}
+                        </span>
+                        {disc > 0 && (
+                          <>
+                            <span className="text-xs text-stone-400 line-through font-medium">
+                              ₹{base.toLocaleString("en-IN")}
+                            </span>
+                            <span className="text-[11px] text-emerald-700 font-bold">
+                              (Saves ₹{(base - finalPayable).toLocaleString("en-IN")})
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>

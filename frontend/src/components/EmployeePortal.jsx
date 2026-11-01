@@ -1812,23 +1812,28 @@ function EmployeePortal({
                                   </span>
                                 </div>
 
-                                <div className="flex items-baseline gap-2 pt-1">
-                                  <span className="text-base font-black text-stone-950">
-                                    ₹
-                                    {variantOnlyForm.selling_price
-                                      ? Number(variantOnlyForm.selling_price).toLocaleString("en-IN")
-                                      : "0"}
-                                  </span>
-                                  {Number(variantOnlyForm.discount_percent || 0) > 0 && variantOnlyForm.selling_price && (
-                                    <span className="text-xs text-stone-400 line-through font-semibold">
-                                      ₹
-                                      {Math.round(
-                                        Number(variantOnlyForm.selling_price) /
-                                          (1 - Number(variantOnlyForm.discount_percent) / 100)
-                                      ).toLocaleString("en-IN")}
-                                    </span>
-                                  )}
-                                </div>
+                                {(() => {
+                                  const base = Number(variantOnlyForm.selling_price) || 0;
+                                  const disc = Number(variantOnlyForm.discount_percent) || 0;
+                                  const finalPrice = disc > 0 ? Math.round(base * (1 - disc / 100)) : base;
+                                  return (
+                                    <div className="flex items-baseline gap-2 pt-1 flex-wrap">
+                                      <span className="text-base font-black text-stone-950">
+                                        ₹{finalPrice.toLocaleString("en-IN")}
+                                      </span>
+                                      {disc > 0 && base > 0 && (
+                                        <>
+                                          <span className="text-xs text-stone-400 line-through font-semibold">
+                                            ₹{base.toLocaleString("en-IN")}
+                                          </span>
+                                          <span className="text-[11px] font-bold text-emerald-700">
+                                            (Saves ₹{(base - finalPrice).toLocaleString("en-IN")})
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </div>
