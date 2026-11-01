@@ -98,6 +98,14 @@ function App() {
         const catValue = decodeURIComponent(fullHash.slice("#category=".length).split("&")[0]);
         setInitialCategoryFilter(catValue);
         setCurrentView("store");
+      } else if (
+        hashLower === "#terminal" ||
+        hashLower === "#portal" ||
+        hashLower === "#staff" ||
+        hashLower === "#employee" ||
+        hashLower === "#staff-terminal"
+      ) {
+        setCurrentView("store");
       } else if (hashLower.startsWith("#brand=")) {
         const brandValue = decodeURIComponent(fullHash.slice("#brand=".length).split("&")[0]);
         setInitialBrandFilter(brandValue);

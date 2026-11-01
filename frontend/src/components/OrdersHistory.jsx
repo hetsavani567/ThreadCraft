@@ -382,7 +382,13 @@ function OrdersHistory({
     currentUser.role !== "employee" &&
     (currentUser.email || currentUser.cust_id)
   );
-  const isEmployee = currentUser?.role === "employee";
+  const isEmployee = Boolean(
+    currentUser &&
+      (currentUser.role === "employee" ||
+        currentUser.userType === "employee" ||
+        Boolean(currentUser.emp_id) ||
+        (currentUser.email && currentUser.email.toLowerCase().endsWith("@thread.com")))
+  );
 
   // If visitor is not logged in as a customer, show an elegant authentication prompt
   if (!isCustomer) {
@@ -428,8 +434,18 @@ function OrdersHistory({
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
                   <button
                     type="button"
+                    onClick={() => {
+                      window.location.hash = "#terminal";
+                      onNavigateToStore();
+                    }}
+                    className="rounded-full bg-amber-600 px-7 py-3 text-sm font-bold text-white shadow-md hover:bg-amber-500 transition cursor-pointer"
+                  >
+                    ⚙️ Open Staff Terminal
+                  </button>
+                  <button
+                    type="button"
                     onClick={onNavigateToStore}
-                    className="rounded-full bg-stone-900 px-7 py-3 text-sm font-bold text-white shadow-md hover:bg-amber-700 transition cursor-pointer"
+                    className="rounded-full bg-stone-900 px-7 py-3 text-sm font-bold text-white shadow-md hover:bg-stone-800 transition cursor-pointer"
                   >
                     Back to Store Catalog
                   </button>

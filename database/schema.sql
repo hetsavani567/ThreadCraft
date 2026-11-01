@@ -37,7 +37,6 @@ CREATE TABLE brand (
 CREATE TABLE product (
     product_id           INT AUTO_INCREMENT PRIMARY KEY,
     product_name         VARCHAR(150) NOT NULL,
-    base_price           DECIMAL(10,2) NOT NULL CHECK (base_price >= 0),
     product_description  VARCHAR(500),
 	Image_URL text default null,
     category_id          INT NOT NULL,   -- FK for "Has"
@@ -60,6 +59,7 @@ CREATE TABLE product_variant (
     color_size     VARCHAR(50) NOT NULL,
     selling_price  DECIMAL(10,2) NOT NULL CHECK (selling_price >= 0),
     is_active      BOOLEAN NOT NULL DEFAULT TRUE,
+    discount_percent INT NOT NULL DEFAULT 0,
     CONSTRAINT fk_variant_product FOREIGN KEY (product_id)
         REFERENCES product(product_id)
         ON DELETE CASCADE ON UPDATE CASCADE

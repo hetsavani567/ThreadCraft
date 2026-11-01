@@ -76,7 +76,6 @@ DELIMITER //
 CREATE PROCEDURE sp_update_product(
     IN p_product_id INT,
     IN p_product_name VARCHAR(150),
-    IN p_base_price DECIMAL(10,2),
     IN p_product_description VARCHAR(500),
     IN p_image_url TEXT
 )
@@ -86,14 +85,8 @@ BEGIN
         SET MESSAGE_TEXT = 'Validation Error: Product ID does not exist.';
     END IF;
 
-    IF p_base_price <= 0 THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Validation Error: Base price must be greater than zero.';
-    END IF;
-
     UPDATE product
     SET product_name = TRIM(p_product_name),
-        base_price = p_base_price,
         product_description = p_product_description,
         Image_URL = p_image_url
     WHERE product_id = p_product_id;
@@ -112,7 +105,8 @@ CREATE PROCEDURE sp_update_product_variant(
     IN p_variant_id INT,
     IN p_color_size VARCHAR(50),
     IN p_selling_price DECIMAL(10,2),
-    IN p_is_active BOOLEAN
+    IN p_is_active BOOLEAN,
+    IN p_discount_percent INT
 )
 BEGIN
     IF (SELECT COUNT(*) FROM product_variant WHERE variant_id = p_variant_id) = 0 THEN
@@ -128,7 +122,8 @@ BEGIN
     UPDATE product_variant
     SET color_size = TRIM(p_color_size),
         selling_price = p_selling_price,
-        is_active = COALESCE(p_is_active, 1)
+        is_active = COALESCE(p_is_active, 1),
+        discount_percent = COALESCE(p_discount_percent, 0)
     WHERE variant_id = p_variant_id;
 
     SELECT p_variant_id AS updated_variant_id, 'Product variant updated successfully' AS status;

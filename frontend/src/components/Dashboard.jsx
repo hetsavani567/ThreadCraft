@@ -35,7 +35,34 @@ function Dashboard({
   const setCart = externalSetCart || setInternalCart;
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isEmployeePortalOpen, setIsEmployeePortalOpen] = useState(false);
+  const [isEmployeePortalOpen, setIsEmployeePortalOpen] = useState(() => {
+    const hash = (window.location.hash || "").toLowerCase();
+    return (
+      hash === "#terminal" ||
+      hash === "#portal" ||
+      hash === "#staff" ||
+      hash === "#employee" ||
+      hash === "#staff-terminal"
+    );
+  });
+
+  useEffect(() => {
+    function handleTerminalHash() {
+      const hash = (window.location.hash || "").toLowerCase();
+      if (
+        hash === "#terminal" ||
+        hash === "#portal" ||
+        hash === "#staff" ||
+        hash === "#employee" ||
+        hash === "#staff-terminal"
+      ) {
+        setIsEmployeePortalOpen(true);
+      }
+    }
+    handleTerminalHash();
+    window.addEventListener("hashchange", handleTerminalHash);
+    return () => window.removeEventListener("hashchange", handleTerminalHash);
+  }, []);
   const [editingVariantProduct, setEditingVariantProduct] = useState(null);
   const [staffDiscountActive, setStaffDiscountActive] = useState(false);
   const [isPaymentPageOpen, setIsPaymentPageOpen] = useState(false);
@@ -68,7 +95,13 @@ function Dashboard({
     }
   }
 
-  const isEmployee = currentUser?.role === "employee";
+  const isEmployee = Boolean(
+    currentUser &&
+      (currentUser.role === "employee" ||
+        currentUser.userType === "employee" ||
+        Boolean(currentUser.emp_id) ||
+        (currentUser.email && currentUser.email.toLowerCase().endsWith("@thread.com")))
+  );
 
   // Employee live stock update handler - Persists directly to MySQL database
   async function handleUpdateStock(productId, delta) {
@@ -1125,6 +1158,7 @@ function Dashboard({
                           color_size: updated.color_size,
                           selling_price: updated.selling_price,
                           is_active: updated.is_active,
+                          discount_percent: updated.discount_percent,
                         }
                       : v
                   );
