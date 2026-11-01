@@ -683,9 +683,10 @@ function OrdersHistory({
                                 key={i}
                                 src={item.image}
                                 alt={item.product_name}
+                                referrerPolicy="no-referrer"
                                 className="inline-block h-8 w-8 rounded-lg border-2 border-white object-cover bg-stone-100 shadow-2xs"
                                 onError={(e) => {
-                                  e.target.src = "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=150&q=80";
+                                  e.target.src = "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=150&q=80";
                                 }}
                               />
                             ))}
@@ -918,9 +919,10 @@ function OrdersHistory({
                           <img
                             src={item.image}
                             alt={item.product_name}
+                            referrerPolicy="no-referrer"
                             className="h-14 w-14 shrink-0 rounded-xl object-cover bg-stone-100 border border-stone-200 shadow-2xs"
                             onError={(e) => {
-                              e.target.src = "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=200&q=80";
+                              e.target.src = "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=200&q=80";
                             }}
                           />
                           <div>

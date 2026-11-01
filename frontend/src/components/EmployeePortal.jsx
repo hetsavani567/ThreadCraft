@@ -966,6 +966,7 @@ function EmployeePortal({
                                       <img
                                         src={product.image}
                                         alt={product.name}
+                                        referrerPolicy="no-referrer"
                                         className="h-10 w-10 rounded-xl object-cover border border-stone-200 shrink-0"
                                       />
                                     ) : (
@@ -1077,9 +1078,350 @@ function EmployeePortal({
                   </div>
                 </div>
 
+<<<<<<< HEAD
+                {/* Success Notification */}
+                {createSuccess && (
+                  <div className="rounded-2xl bg-emerald-50 border border-emerald-300 p-4 text-sm font-semibold text-emerald-900 flex items-center justify-between gap-3 animate-fadeIn shadow-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">🎉</span>
+                      <span>{createSuccess}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCreateSuccess("")}
+                      className="text-xs text-emerald-700 hover:underline cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
+
+                {/* Form General Error */}
+                {formErrors.submit && (
+                  <div className="rounded-2xl bg-red-50 border border-red-300 p-4 text-sm font-semibold text-red-900 flex items-center gap-2 animate-fadeIn shadow-xs">
+                    <span className="text-xl">⚠️</span>
+                    <span>{formErrors.submit}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleCreateProductSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Left 2 Cols: Main Product Details */}
+                    <div className="lg:col-span-2 rounded-3xl border border-stone-200 bg-white p-6 shadow-xs space-y-4">
+                      <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+                        <h5 className="text-xs font-extrabold uppercase tracking-wider text-stone-800 flex items-center gap-2">
+                          <span>1️⃣</span> Product Information (Parent Table)
+                        </h5>
+                        <span className="text-[11px] text-stone-400 font-medium">* Required fields</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Product Name */}
+                        <div className="sm:col-span-2">
+                          <label className="block text-xs font-bold text-stone-700 mb-1">
+                            Product Name *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Vintage Wash Denim Jacket, Silk Kurta, Running Pro Shoes"
+                            value={newProductForm.product_name}
+                            onChange={(e) => handleFieldChange("product_name", e.target.value)}
+                            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                              formErrors.product_name
+                                ? "border-red-500 ring-2 ring-red-100"
+                                : "border-stone-300 focus:border-amber-700"
+                            }`}
+                          />
+                          {formErrors.product_name && (
+                            <p className="mt-1 text-[11px] font-semibold text-red-600">
+                              {formErrors.product_name}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Category Select */}
+                        <div>
+                          <label className="block text-xs font-bold text-stone-700 mb-1">
+                            Category *
+                          </label>
+                          <select
+                            value={newProductForm.category_id}
+                            onChange={(e) => handleFieldChange("category_id", e.target.value)}
+                            className={`w-full rounded-xl border bg-white px-3 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                              formErrors.category_id
+                                ? "border-red-500 ring-2 ring-red-100"
+                                : "border-stone-300 focus:border-amber-700"
+                            }`}
+                          >
+                            <option value="">-- Choose Category --</option>
+                            {categories.map((c) => (
+                              <option key={c.category_id} value={c.category_id}>
+                                {c.category_type} (ID: #{c.category_id})
+                              </option>
+                            ))}
+                          </select>
+                          {formErrors.category_id && (
+                            <p className="mt-1 text-[11px] font-semibold text-red-600">
+                              {formErrors.category_id}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Brand Select */}
+                        <div>
+                          <label className="block text-xs font-bold text-stone-700 mb-1">
+                            Brand *
+                          </label>
+                          <select
+                            value={newProductForm.brand_id}
+                            onChange={(e) => handleFieldChange("brand_id", e.target.value)}
+                            className={`w-full rounded-xl border bg-white px-3 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                              formErrors.brand_id
+                                ? "border-red-500 ring-2 ring-red-100"
+                                : "border-stone-300 focus:border-amber-700"
+                            }`}
+                          >
+                            <option value="">-- Choose Brand --</option>
+                            {brands.map((b) => (
+                              <option key={b.brand_id} value={b.brand_id}>
+                                {b.brand_name} (ID: #{b.brand_id})
+                              </option>
+                            ))}
+                          </select>
+                          {formErrors.brand_id && (
+                            <p className="mt-1 text-[11px] font-semibold text-red-600">
+                              {formErrors.brand_id}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Base Price */}
+                        <div>
+                          <label className="block text-xs font-bold text-stone-700 mb-1">
+                            Base MRP Price (₹) *
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-2.5 text-xs text-stone-400 font-bold">₹</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              placeholder="e.g. 1499.00"
+                              value={newProductForm.base_price}
+                              onChange={(e) => handleFieldChange("base_price", e.target.value)}
+                              className={`w-full rounded-xl border bg-white pl-8 pr-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                formErrors.base_price
+                                  ? "border-red-500 ring-2 ring-red-100"
+                                  : "border-stone-300 focus:border-amber-700"
+                              }`}
+                            />
+                          </div>
+                          {formErrors.base_price && (
+                            <p className="mt-1 text-[11px] font-semibold text-red-600">
+                              {formErrors.base_price}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Image URL */}
+                        <div>
+                          <label className="block text-xs font-bold text-stone-700 mb-1">
+                            Image Web URL (Optional)
+                          </label>
+                          <input
+                            type="url"
+                            placeholder="https://images.unsplash.com/..."
+                            value={newProductForm.image_url}
+                            onChange={(e) => handleFieldChange("image_url", e.target.value)}
+                            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                              formErrors.image_url
+                                ? "border-red-500 ring-2 ring-red-100"
+                                : "border-stone-300 focus:border-amber-700"
+                            }`}
+                          />
+                          {formErrors.image_url && (
+                            <p className="mt-1 text-[11px] font-semibold text-red-600">
+                              {formErrors.image_url}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Description */}
+                        <div className="sm:col-span-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-xs font-bold text-stone-700">
+                              Product Description
+                            </label>
+                            <span className="text-[10px] text-stone-400">
+                              {newProductForm.product_description.length}/500 chars
+                            </span>
+                          </div>
+                          <textarea
+                            rows={3}
+                            maxLength={500}
+                            placeholder="Breathable cotton fabric with comfort fit, ideal for casual and daily wear..."
+                            value={newProductForm.product_description}
+                            onChange={(e) => handleFieldChange("product_description", e.target.value)}
+                            className={`w-full rounded-xl border bg-white px-3.5 py-2 text-xs text-stone-900 focus:outline-none transition ${
+                              formErrors.product_description
+                                ? "border-red-500 ring-2 ring-red-100"
+                                : "border-stone-300 focus:border-amber-700"
+                            }`}
+                          />
+                          {formErrors.product_description && (
+                            <p className="mt-1 text-[11px] font-semibold text-red-600">
+                              {formErrors.product_description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right 1 Col: Initial Variant & Stock + Preview */}
+                    <div className="rounded-3xl border border-stone-200 bg-white p-6 shadow-xs space-y-5 flex flex-col justify-between">
+                      <div className="space-y-4">
+                        <div className="border-b border-stone-200 pb-3">
+                          <h5 className="text-xs font-extrabold uppercase tracking-wider text-stone-800 flex items-center gap-2">
+                            <span>2️⃣</span> Initial Variant & Stock
+                          </h5>
+                          <p className="text-[11px] text-stone-500 mt-0.5">
+                            Auto-creates initial SKU entry
+                          </p>
+                        </div>
+
+                        {/* Color Size */}
+                        <div>
+                          <label className="block text-xs font-bold text-stone-700 mb-1">
+                            Size / Option (Color-Size) *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Black-M, Navy-XL, 9-UK"
+                            value={newProductForm.color_size}
+                            onChange={(e) => handleFieldChange("color_size", e.target.value)}
+                            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                              formErrors.color_size
+                                ? "border-red-500 ring-2 ring-red-100"
+                                : "border-stone-300 focus:border-amber-700"
+                            }`}
+                          />
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {["Black-M", "Blue-L", "White-XL", "Free-Size"].map((chip) => (
+                              <button
+                                key={chip}
+                                type="button"
+                                onClick={() => handleFieldChange("color_size", chip)}
+                                className="rounded-md bg-stone-100 border border-stone-200 px-2 py-0.5 text-[10px] text-stone-700 hover:bg-stone-200 transition cursor-pointer"
+                              >
+                                {chip}
+                              </button>
+                            ))}
+                          </div>
+                          {formErrors.color_size && (
+                            <p className="mt-1 text-[11px] font-semibold text-red-600">
+                              {formErrors.color_size}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Selling Price */}
+                        <div>
+                          <label className="block text-xs font-bold text-stone-700 mb-1">
+                            Variant Selling Price (₹) *
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-2.5 text-xs text-stone-400 font-bold">₹</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              placeholder="e.g. 1499.00"
+                              value={newProductForm.selling_price}
+                              onChange={(e) => handleFieldChange("selling_price", e.target.value)}
+                              className={`w-full rounded-xl border bg-white pl-8 pr-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                formErrors.selling_price
+                                  ? "border-red-500 ring-2 ring-red-100"
+                                  : "border-stone-300 focus:border-amber-700"
+                              }`}
+                            />
+                          </div>
+                          {formErrors.selling_price && (
+                            <p className="mt-1 text-[11px] font-semibold text-red-600">
+                              {formErrors.selling_price}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Initial Stock */}
+                        <div>
+                          <label className="block text-xs font-bold text-stone-700 mb-1">
+                            Branch Initial Stock Quantity *
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="e.g. 50"
+                            value={newProductForm.initial_stock}
+                            onChange={(e) => handleFieldChange("initial_stock", e.target.value)}
+                            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                              formErrors.initial_stock
+                                ? "border-red-500 ring-2 ring-red-100"
+                                : "border-stone-300 focus:border-amber-700"
+                            }`}
+                          />
+                          {formErrors.initial_stock && (
+                            <p className="mt-1 text-[11px] font-semibold text-red-600">
+                              {formErrors.initial_stock}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Mini Live Preview Card */}
+                      <div className="rounded-2xl bg-stone-50 border border-stone-200 p-3.5">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-2">
+                          Live Catalog Preview
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="h-12 w-12 rounded-xl bg-stone-200 overflow-hidden shrink-0 border border-stone-300 flex items-center justify-center text-lg">
+                            {newProductForm.image_url ? (
+                              <img
+                                src={newProductForm.image_url}
+                                alt="Preview"
+                                referrerPolicy="no-referrer"
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = "none";
+                                }}
+                              />
+                            ) : (
+                              "👕"
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-xs text-stone-900 truncate">
+                              {newProductForm.product_name || "New Product Title"}
+                            </div>
+                            <div className="text-[11px] font-black text-amber-800">
+                              ₹{newProductForm.selling_price || newProductForm.base_price || "0.00"}
+                            </div>
+                            <div className="text-[10px] text-stone-500">
+                              SKU: {newProductForm.color_size || "Option"} • Stock: {newProductForm.initial_stock || "0"}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions Bar */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+=======
                 {/* Sub-Mode Selector Pill Bar */}
                 <div className="rounded-3xl border border-stone-200 bg-white p-3 shadow-xs flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
+>>>>>>> 677ec24df5958ddaac8b9382eac3a8918ef17532
                     <button
                       type="button"
                       onClick={() => {

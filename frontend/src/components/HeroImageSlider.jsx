@@ -44,8 +44,16 @@ function HeroImageSlider({ slides = BANNER_SLIDES, autoPlayInterval = 4000, chil
               <img
                 src={slide.url}
                 alt={slide.title || "Background banner"}
+<<<<<<< HEAD
+                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
+                className={`h-full w-full object-cover transition-transform duration-7000 ease-out ${
+                  isActive ? "scale-105" : "scale-100"
+                }`}
+=======
                 className={`h-full w-full object-cover transition-transform duration-7000 ease-out ${isActive ? "scale-105" : "scale-100"
                   }`}
+>>>>>>> 677ec24df5958ddaac8b9382eac3a8918ef17532
                 loading={index === 0 ? "eager" : "lazy"}
               />
             </div>

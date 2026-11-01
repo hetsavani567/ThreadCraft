@@ -103,6 +103,7 @@ function CartBucketAnimation({ animationData, onAnimationEnd }) {
               <img
                 src={product.image}
                 alt={product.name || "Product"}
+                referrerPolicy="no-referrer"
                 className="h-full w-full object-cover"
               />
             ) : (
