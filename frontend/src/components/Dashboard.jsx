@@ -470,6 +470,18 @@ function Dashboard({
 
 
   const filteredProducts = products.filter((product) => {
+    // For customers & guests: completely hide products that have NO active variants!
+    // Employees can see all products so they can reactivate or manage inactive ones.
+    if (!isEmployee) {
+      const allVars = Array.isArray(product.variants) ? product.variants : [];
+      const hasActive = allVars.length === 0
+        ? Boolean(product.has_active_variant)
+        : allVars.some((v) => v.is_active === 1 || v.is_active === true || v.is_active === "1");
+      if (!hasActive) {
+        return false;
+      }
+    }
+
     const searchLower = search.toLowerCase();
     const matchesSearch =
       !search ||
@@ -1188,9 +1200,13 @@ function Dashboard({
                         }
                       : v
                   );
+                  const hasActiveVariant = updatedVariants.some(
+                    (v) => v.is_active === 1 || v.is_active === true || v.is_active === "1"
+                  ) ? 1 : 0;
                   return {
                     ...p,
                     variants: updatedVariants,
+                    has_active_variant: hasActiveVariant,
                     price: updated.selling_price || p.price,
                     image: updated.image !== undefined ? updated.image : p.image,
                   };
@@ -1198,6 +1214,35 @@ function Dashboard({
                 return p;
               })
             );
+
+            // Also keep editingVariantProduct in sync if still open
+            setEditingVariantProduct((prev) => {
+              if (!prev || prev.product?.id !== updated.productId) return prev;
+              const nextVariants = (prev.product.variants || []).map((v) =>
+                v.variant_id === updated.variant_id
+                  ? {
+                      ...v,
+                      color_size: updated.color_size,
+                      selling_price: updated.selling_price,
+                      is_active: updated.is_active,
+                      discount_percent: updated.discount_percent,
+                    }
+                  : v
+              );
+              return {
+                ...prev,
+                product: {
+                  ...prev.product,
+                  variants: nextVariants,
+                  image: updated.image !== undefined ? updated.image : prev.product.image,
+                },
+                variant: {
+                  ...prev.variant,
+                  ...updated,
+                },
+              };
+            });
+
             // Refresh catalog from MySQL database
             await loadData();
           }}

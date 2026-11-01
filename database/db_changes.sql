@@ -33,3 +33,8 @@
 -- [2026-11-01T06:31:02.435Z] UPDATE VARIANT: variant_id=4, color_size="Red-9", selling_price=3499, discount_percent=50%, is_active=true
 -- [2026-11-01T08:56:36.943Z] INSERT REVIEW: product_id=3, rating=3, customer="Priya Shah"
 -- [2026-11-01T09:03:24.072Z] INSERT REVIEW: product_id=10, rating=5, customer="Priya Shah"
+-- [2026-11-01T10:08:07.623Z] UPDATE VARIANT: variant_id=4, color_size="Red-9", selling_price=3499, discount_percent=50%, is_active=false
+-- [2026-11-01T10:08:42.421Z] UPDATE VARIANT: variant_id=5, color_size="Black-8", selling_price=3599, discount_percent=30%, is_active=false
+-- [2026-11-01T10:10:05.747Z] UPDATE VARIANT: variant_id=1, color_size="Black-8", selling_price=3599, discount_percent=25%, is_active=true
+-- [2026-11-01T10:29:53.700Z] UPDATE VARIANT: variant_id=5, color_size="Black-8", selling_price=3599, discount_percent=30%, is_active=true
+-- [2026-11-01T10:30:35.306Z] UPDATE VARIANT: variant_id=4, color_size="Red-9", selling_price=3499, discount_percent=25%, is_active=true

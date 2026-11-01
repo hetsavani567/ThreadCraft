@@ -11,12 +11,24 @@ export const getAllProducts = async ({ category, brand, search } = {}) => {
                 WHERE pv_min.product_id = p.product_id AND pv_min.is_active = 1
                 ORDER BY pv_min.variant_id ASC
                 LIMIT 1
+            ), (
+                SELECT CAST(pv_any.selling_price AS DOUBLE)
+                FROM product_variant pv_any
+                WHERE pv_any.product_id = p.product_id
+                ORDER BY pv_any.variant_id ASC
+                LIMIT 1
             ), 0.0) AS price,
             COALESCE((
                 SELECT pv_min.discount_percent
                 FROM product_variant pv_min
                 WHERE pv_min.product_id = p.product_id AND pv_min.is_active = 1
                 ORDER BY pv_min.variant_id ASC
+                LIMIT 1
+            ), (
+                SELECT pv_any.discount_percent
+                FROM product_variant pv_any
+                WHERE pv_any.product_id = p.product_id
+                ORDER BY pv_any.variant_id ASC
                 LIMIT 1
             ), 0) AS discount_percent,
             p.product_description AS description,
@@ -33,6 +45,12 @@ export const getAllProducts = async ({ category, brand, search } = {}) => {
                 JOIN product_variant pv2 ON inv.variant_id = pv2.variant_id
                 WHERE pv2.product_id = p.product_id
             ), 0) AS total_stock,
+            COALESCE((
+                SELECT 1
+                FROM product_variant pv_act
+                WHERE pv_act.product_id = p.product_id AND pv_act.is_active = 1
+                LIMIT 1
+            ), 0) AS has_active_variant,
             (
                 SELECT JSON_ARRAYAGG(
                     JSON_OBJECT(
@@ -44,7 +62,7 @@ export const getAllProducts = async ({ category, brand, search } = {}) => {
                     )
                 )
                 FROM product_variant pv
-                WHERE pv.product_id = p.product_id AND pv.is_active = 1
+                WHERE pv.product_id = p.product_id
             ) AS variants
         FROM product p
         LEFT JOIN category c ON p.category_id = c.category_id
@@ -88,12 +106,24 @@ export const getProductById = async (id) => {
                 WHERE pv_min.product_id = p.product_id AND pv_min.is_active = 1
                 ORDER BY pv_min.variant_id ASC
                 LIMIT 1
+            ), (
+                SELECT CAST(pv_any.selling_price AS DOUBLE)
+                FROM product_variant pv_any
+                WHERE pv_any.product_id = p.product_id
+                ORDER BY pv_any.variant_id ASC
+                LIMIT 1
             ), 0.0) AS price,
             COALESCE((
                 SELECT pv_min.discount_percent
                 FROM product_variant pv_min
                 WHERE pv_min.product_id = p.product_id AND pv_min.is_active = 1
                 ORDER BY pv_min.variant_id ASC
+                LIMIT 1
+            ), (
+                SELECT pv_any.discount_percent
+                FROM product_variant pv_any
+                WHERE pv_any.product_id = p.product_id
+                ORDER BY pv_any.variant_id ASC
                 LIMIT 1
             ), 0) AS discount_percent,
             p.product_description AS description,
@@ -110,6 +140,12 @@ export const getProductById = async (id) => {
                 JOIN product_variant pv2 ON inv.variant_id = pv2.variant_id
                 WHERE pv2.product_id = p.product_id
             ), 0) AS total_stock,
+            COALESCE((
+                SELECT 1
+                FROM product_variant pv_act
+                WHERE pv_act.product_id = p.product_id AND pv_act.is_active = 1
+                LIMIT 1
+            ), 0) AS has_active_variant,
             (
                 SELECT JSON_ARRAYAGG(
                     JSON_OBJECT(
@@ -121,7 +157,7 @@ export const getProductById = async (id) => {
                     )
                 )
                 FROM product_variant pv
-                WHERE pv.product_id = p.product_id AND pv.is_active = 1
+                WHERE pv.product_id = p.product_id
             ) AS variants,
             (
                 SELECT JSON_ARRAYAGG(
