@@ -103,13 +103,16 @@ function ProductDetail({
     }
     if (!product || isOutOfStock) return;
     const currentVariant = variants.find((v) => v.variant_id === selectedVariantId) || variants[0];
-    const priceToUse = currentVariant?.selling_price || product.price || 0;
+    const variantDiscount = getProductDiscount(product, currentVariant?.selling_price || product.price || 0, currentVariant);
+    const priceToUse = variantDiscount.displayPrice;
 
     if (onAddToCart) {
       onAddToCart(
         {
           ...product,
           price: priceToUse,
+          originalPrice: variantDiscount.originalPrice,
+          discountPercent: variantDiscount.discountPercent,
           selectedVariant: currentVariant || null,
           selectedColorSize: currentVariant?.color_size || null,
         },
@@ -272,9 +275,9 @@ function ProductDetail({
 
   const variants = product.variants || [];
   const selectedVariant = variants.find((v) => v.variant_id === selectedVariantId) || variants[0];
-  const displayPrice = selectedVariant?.selling_price || product.price || 0;
+  const baseSellingPrice = selectedVariant?.selling_price || product.price || 0;
   const isOutOfStock = product.total_stock !== undefined && product.total_stock <= 0;
-  const { discountPercent, originalPrice, savings } = getProductDiscount(product, displayPrice, selectedVariant);
+  const { discountPercent, originalPrice, displayPrice, savings } = getProductDiscount(product, baseSellingPrice, selectedVariant);
 
   const reviewsList = Array.isArray(product.reviews) ? product.reviews : [];
   const ratingCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };

@@ -18,13 +18,13 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
     variants.find((v) => v.variant_id === selectedVariantId) ||
     variants[0];
 
-  const displayPrice =
+  const baseSellingPrice =
     selectedVariant?.selling_price ?? product.price ?? 0;
 
   const isOutOfStock =
     product.total_stock !== undefined && product.total_stock <= 0;
 
-  const { discountPercent, originalPrice } = getProductDiscount(product, displayPrice, selectedVariant);
+  const { discountPercent, originalPrice, displayPrice, finalPrice } = getProductDiscount(product, baseSellingPrice, selectedVariant);
 
   function handleAddToCartClick(e) {
     e.stopPropagation();
@@ -33,6 +33,8 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
       onAddToCart({
         ...product,
         price: displayPrice,
+        originalPrice: originalPrice,
+        discountPercent: discountPercent,
         selectedVariant: selectedVariant || null,
         selectedColorSize: selectedVariant?.color_size || null,
       });
@@ -53,7 +55,7 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
   return (
     <article
       onClick={handleCardClick}
-      className={`group flex flex-col justify-between h-full overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer ${
+      className={`group flex flex-col justify-between h-full w-full flex-1 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer ${
         isEmployee ? "ring-1 hover:ring-2 hover:ring-amber-500/70" : ""
       }`}
     >
@@ -174,7 +176,7 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
 
           {/* Variant Selector */}
           {variants.length > 0 && (
-            <div className="mt-2.5">
+            <div className="mt-2.5 min-h-[48px] flex flex-col justify-end">
               <div className="text-[10px] font-semibold text-stone-500 mb-1">
                 Option / Size:
               </div>
@@ -204,7 +206,7 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
       </div>
 
       {/* Price and Footer */}
-      <div className="border-t border-stone-100 p-3 pt-2.5 bg-stone-50/50 shrink-0">
+      <div className="border-t border-stone-100 p-3 pt-2.5 bg-stone-50/50 shrink-0 mt-auto">
         <div className="flex items-center justify-between gap-2">
           <div>
             <span className="text-[10px] text-stone-400 block font-medium uppercase tracking-wider">
