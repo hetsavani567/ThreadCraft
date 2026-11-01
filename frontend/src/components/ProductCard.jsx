@@ -4,10 +4,15 @@ import { getProductDiscount } from "../utils/discount.js";
 function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelectCategory, onSelectProduct }) {
   const [imgError, setImgError] = useState(false);
 
-  const variants =
+  const allVariants =
     product.variants && product.variants.length > 0
       ? product.variants
       : [];
+
+  // For customers: only show active variants. For employees: show all variants so they can manage inactive ones.
+  const variants = isEmployee
+    ? allVariants
+    : allVariants.filter((v) => v.is_active === 1 || v.is_active === true || v.is_active === "1");
 
   // Selected variant state (default to first available variant)
   const [selectedVariantId, setSelectedVariantId] = useState(
@@ -104,6 +109,12 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
                 {product.brand}
               </span>
             )}
+
+            {isEmployee && allVariants.length > 0 && !allVariants.some((v) => v.is_active === 1 || v.is_active === true || v.is_active === "1") && (
+              <span className="rounded-full bg-red-600/90 text-white px-2 py-0.5 text-[9px] font-black uppercase shadow-xs">
+                Hidden (All Inactive)
+              </span>
+            )}
           </div>
 
           {/* Rating Badge */}
@@ -145,23 +156,28 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
               </div>
 
               <div className="flex flex-wrap gap-1">
-                {variants.map((v) => (
-                  <button
-                    key={v.variant_id}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedVariantId(v.variant_id);
-                    }}
-                    className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition ${
-                      selectedVariantId === v.variant_id
-                        ? "bg-amber-700 text-white shadow-xs"
-                        : "border border-stone-200 bg-stone-50 text-stone-700 hover:border-amber-700"
-                    }`}
-                  >
-                    {v.color_size}
-                  </button>
-                ))}
+                {variants.map((v) => {
+                  const isVarActive = v.is_active === 1 || v.is_active === true || v.is_active === "1";
+                  return (
+                    <button
+                      key={v.variant_id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedVariantId(v.variant_id);
+                      }}
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition ${
+                        selectedVariantId === v.variant_id
+                          ? "bg-amber-700 text-white shadow-xs"
+                          : "border border-stone-200 bg-stone-50 text-stone-700 hover:border-amber-700"
+                      } ${!isVarActive ? "opacity-60 border-dashed" : ""}`}
+                      title={!isVarActive ? `${v.color_size} (Inactive - Hidden from customers)` : v.color_size}
+                    >
+                      {v.color_size}
+                      {!isVarActive && <span className="ml-1 text-[8px] text-red-500 font-bold">●</span>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

@@ -229,14 +229,16 @@ export const updateVariant = async (req, res, next) => {
             return res.status(400).json({ message: "Discount percentage must be a number between 0% and 99%." });
         }
 
+        const activeBool = !(is_active === 0 || is_active === false || is_active === "0" || is_active === "false");
+
         const result = await productService.updateProductVariant(parsedVariantId, {
             color_size: color_size.trim(),
             selling_price: parsedPrice,
-            is_active: is_active !== undefined ? Boolean(is_active) : true,
+            is_active: activeBool,
             discount_percent: Math.round(parsedDiscount)
         });
 
-        logDbChange("UPDATE VARIANT", `variant_id=${parsedVariantId}, color_size="${color_size.trim()}", selling_price=${parsedPrice}, discount_percent=${Math.round(parsedDiscount)}%, is_active=${is_active !== undefined ? Boolean(is_active) : true}`);
+        logDbChange("UPDATE VARIANT", `variant_id=${parsedVariantId}, color_size="${color_size.trim()}", selling_price=${parsedPrice}, discount_percent=${Math.round(parsedDiscount)}%, is_active=${activeBool}`);
 
         res.json({
             message: "Product variant updated successfully using sp_update_product_variant",

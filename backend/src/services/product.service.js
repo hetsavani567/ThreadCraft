@@ -46,6 +46,7 @@ const formatProduct = (prod) => {
         price,
         original_price: originalPrice,
         discount_percent: discountPercent,
+        has_active_variant: Number(prod.has_active_variant || 0),
         rating: Number(prod.rating),
         review_count: Number(prod.review_count),
         total_stock: Number(prod.total_stock),

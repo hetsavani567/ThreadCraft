@@ -69,8 +69,13 @@ function ProductDetail({
     fetchProductById(productId)
       .then((data) => {
         setProduct(data);
-        if (data?.variants?.length > 0) {
-          setSelectedVariantId(data.variants[0].variant_id);
+        const dataVariants = Array.isArray(data?.variants) ? data.variants : [];
+        const activeVariants = dataVariants.filter(
+          (v) => v.is_active === 1 || v.is_active === true || v.is_active === "1"
+        );
+        const initialVariants = isEmployee ? dataVariants : (activeVariants.length > 0 ? activeVariants : dataVariants);
+        if (initialVariants.length > 0) {
+          setSelectedVariantId(initialVariants[0].variant_id);
         }
         setError(null);
 
@@ -81,8 +86,17 @@ function ProductDetail({
           fetchProducts(filter)
             .then((list) => {
               if (Array.isArray(list)) {
-                // Filter out current product and keep up to 4-8 items
-                const others = list.filter((p) => String(p.id) !== String(data.id));
+                // Filter out current product and filter out inactive products for customers
+                const others = list
+                  .filter((p) => String(p.id) !== String(data.id))
+                  .filter((p) => {
+                    if (isEmployee) return true;
+                    return (
+                      p.has_active_variant === 1 ||
+                      (Array.isArray(p.variants) &&
+                        p.variants.some((v) => v.is_active === 1 || v.is_active === true || v.is_active === "1"))
+                    );
+                  });
                 setRelatedProducts(others);
               }
             })
@@ -305,10 +319,21 @@ function ProductDetail({
     );
   }
 
-  const variants = product.variants || [];
-  const selectedVariant = variants.find((v) => v.variant_id === selectedVariantId) || variants[0];
+  const allVariants = Array.isArray(product.variants) ? product.variants : [];
+  const activeVariants = allVariants.filter(
+    (v) => v.is_active === 1 || v.is_active === true || v.is_active === "1"
+  );
+  // Customers only see active variants; employees see all variants (active and inactive)
+  const variants = isEmployee ? allVariants : activeVariants;
+  const isUnavailable = !isEmployee && variants.length === 0;
+
+  const selectedVariant =
+    variants.find((v) => v.variant_id === selectedVariantId) ||
+    variants[0] ||
+    allVariants[0] ||
+    null;
   const baseSellingPrice = selectedVariant?.selling_price || product.price || 0;
-  const isOutOfStock = product.total_stock !== undefined && product.total_stock <= 0;
+  const isOutOfStock = (product.total_stock !== undefined && product.total_stock <= 0) || isUnavailable;
   const { discountPercent, originalPrice, displayPrice, savings } = getProductDiscount(product, baseSellingPrice, selectedVariant);
 
   const reviewsList = Array.isArray(product.reviews) ? product.reviews : [];
@@ -870,9 +895,22 @@ function ProductDetail({
                   <p className="text-xs text-stone-500 mt-1 font-medium">Inclusive of all GST & taxes</p>
                 </div>
 
+                {/* Staff Banner if all variants inactive */}
+                {isEmployee && activeVariants.length === 0 && (
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 font-semibold flex items-center gap-2">
+                    <span className="text-base">👔</span>
+                    <span>Staff Notice: All variants for this product are marked <strong>Inactive</strong>. This product is hidden from customer storefronts.</span>
+                  </div>
+                )}
+
                 {/* Stock Status */}
                 <div className="mb-5">
-                  {isOutOfStock ? (
+                  {isUnavailable ? (
+                    <div className="flex items-center gap-2 text-stone-700 bg-stone-100 p-2.5 rounded-xl border border-stone-300">
+                      <span className="text-base">⏸️</span>
+                      <span className="font-bold text-sm">Currently Unavailable (Item Inactive / Discontinued)</span>
+                    </div>
+                  ) : isOutOfStock ? (
                     <div className="flex items-center gap-2 text-red-600 bg-red-50 p-2.5 rounded-xl border border-red-200">
                       <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
@@ -903,29 +941,40 @@ function ProductDetail({
                       Select Type / Size
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {variants.map((v) => (
-                        <button
-                          key={v.variant_id}
-                          type="button"
-                          onClick={() => setSelectedVariantId(v.variant_id)}
-                          className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all border-2 cursor-pointer ${
-                            selectedVariantId === v.variant_id
-                              ? "bg-amber-700 text-white border-amber-700 shadow-md scale-102"
-                              : "border-stone-200 bg-stone-50 text-stone-700 hover:border-amber-600 hover:text-amber-800"
-                          }`}
-                        >
-                          <span className="block font-bold">{v.color_size}</span>
-                          <span className="block text-xs mt-0.5 opacity-90">
-                            ₹{Number(v.selling_price).toLocaleString("en-IN")}
-                          </span>
-                        </button>
-                      ))}
+                      {variants.map((v) => {
+                        const isVarActive = v.is_active === 1 || v.is_active === true || v.is_active === "1";
+                        return (
+                          <button
+                            key={v.variant_id}
+                            type="button"
+                            onClick={() => setSelectedVariantId(v.variant_id)}
+                            className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all border-2 cursor-pointer ${
+                              selectedVariantId === v.variant_id
+                                ? "bg-amber-700 text-white border-amber-700 shadow-md scale-102"
+                                : "border-stone-200 bg-stone-50 text-stone-700 hover:border-amber-600 hover:text-amber-800"
+                            } ${!isVarActive ? "opacity-60 border-dashed" : ""}`}
+                            title={!isVarActive ? `${v.color_size} (Inactive - Hidden from customers)` : v.color_size}
+                          >
+                            <span className="flex items-center gap-1.5 font-bold">
+                              {v.color_size}
+                              {!isVarActive && (
+                                <span className="text-[10px] bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded font-bold">
+                                  Inactive
+                                </span>
+                              )}
+                            </span>
+                            <span className="block text-xs mt-0.5 opacity-90">
+                              ₹{Number(v.selling_price).toLocaleString("en-IN")}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
 
                 {/* Quantity Selector */}
-                {!isOutOfStock && (
+                {!isOutOfStock && !isUnavailable && (
                   <div className="mb-6">
                     <h3 className="text-xs font-bold text-stone-500 mb-2 uppercase tracking-wider">Quantity</h3>
                     <div className="flex items-center gap-3">
@@ -963,10 +1012,10 @@ function ProductDetail({
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     type="button"
-                    disabled={isOutOfStock}
+                    disabled={isOutOfStock || isUnavailable}
                     onClick={handleAddToCartClick}
                     className={`flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-bold transition-all shadow-sm cursor-pointer ${
-                      isOutOfStock
+                      isOutOfStock || isUnavailable
                         ? "bg-stone-200 text-stone-400 cursor-not-allowed"
                         : "bg-amber-600 text-white hover:bg-amber-700 hover:shadow-md active:scale-[0.98]"
                     }`}
@@ -974,15 +1023,15 @@ function ProductDetail({
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
                     </svg>
-                    {isOutOfStock ? "Out of Stock" : "Add to Cart"}
+                    {isUnavailable ? "Currently Unavailable" : isOutOfStock ? "Out of Stock" : "Add to Cart"}
                   </button>
 
                   <button
                     type="button"
-                    disabled={isOutOfStock}
+                    disabled={isOutOfStock || isUnavailable}
                     onClick={handleBuyNowClick}
                     className={`flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-bold transition-all shadow-sm cursor-pointer ${
-                      isOutOfStock
+                      isOutOfStock || isUnavailable
                         ? "bg-stone-200 text-stone-400 cursor-not-allowed"
                         : "bg-stone-900 text-white hover:bg-stone-800 hover:shadow-md active:scale-[0.98]"
                     }`}
@@ -990,7 +1039,7 @@ function ProductDetail({
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
                     </svg>
-                    Buy Now
+                    {isUnavailable ? "Unavailable" : "Buy Now"}
                   </button>
                 </div>
 
@@ -1105,14 +1154,22 @@ function ProductDetail({
                         <td className="py-3 pr-4 font-semibold text-stone-500">Available Types & Sizes</td>
                         <td className="py-3 text-stone-900">
                           <div className="flex flex-wrap gap-2">
-                            {variants.map((v) => (
-                              <span
-                                key={v.variant_id}
-                                className="bg-stone-100 text-stone-700 px-2.5 py-1 rounded-lg text-xs font-semibold border border-stone-200"
-                              >
-                                {v.color_size} — ₹{Number(v.selling_price).toLocaleString("en-IN")}
-                              </span>
-                            ))}
+                            {variants.map((v) => {
+                              const isVarActive = v.is_active === 1 || v.is_active === true || v.is_active === "1";
+                              return (
+                                <span
+                                  key={v.variant_id}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                                    isVarActive
+                                      ? "bg-stone-100 text-stone-700 border-stone-200"
+                                      : "bg-red-50 text-red-700 border-red-200"
+                                  }`}
+                                >
+                                  {v.color_size} — ₹{Number(v.selling_price).toLocaleString("en-IN")}
+                                  {!isVarActive && " (Inactive)"}
+                                </span>
+                              );
+                            })}
                           </div>
                         </td>
                       </tr>

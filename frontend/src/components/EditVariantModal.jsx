@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { updateProductVariant, updateProduct } from "../services/api";
 
+function isVarActive(v) {
+  if (!v) return true;
+  if (v.is_active === 0 || v.is_active === false || v.is_active === "0" || v.is_active === "false") {
+    return false;
+  }
+  return true;
+}
+
 function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantUpdated }) {
   if (!isOpen || !product) return null;
 
@@ -32,7 +40,7 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
     activeVariant?.discount_percent !== undefined ? String(activeVariant.discount_percent) : "0"
   );
   const [isActive, setIsActive] = useState(
-    activeVariant?.is_active !== undefined ? Boolean(activeVariant.is_active) : true
+    activeVariant ? isVarActive(activeVariant) : true
   );
 
   // Form states - Product Photo (Image URL: 1 URL per product, not per variant)
@@ -53,7 +61,7 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
       setDiscountPercent(
         activeVariant.discount_percent !== undefined ? String(activeVariant.discount_percent) : "0"
       );
-      setIsActive(activeVariant.is_active !== undefined ? Boolean(activeVariant.is_active) : true);
+      setIsActive(isVarActive(activeVariant));
       setFormErrors({});
       setSuccessMessage("");
     }
@@ -327,27 +335,35 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
                 Choose Variant to Update ({variants.length} available):
               </label>
               <div className="flex flex-wrap gap-2">
-                {variants.map((v) => (
-                  <button
-                    key={v.variant_id}
-                    type="button"
-                    onClick={() => setSelectedVariantId(v.variant_id)}
-                    className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
-                      selectedVariantId === v.variant_id
-                        ? "bg-stone-900 text-white shadow-sm ring-2 ring-stone-900"
-                        : "bg-white border border-stone-300 text-stone-700 hover:bg-stone-100"
-                    }`}
-                  >
-                    <span>ID #{v.variant_id}:</span>
-                    <strong>{v.color_size}</strong>
-                    <span className="text-[10px] opacity-80">(₹{v.selling_price})</span>
-                    {v.discount_percent > 0 && (
-                      <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.5 text-[9px] font-bold">
-                        {v.discount_percent}% OFF
-                      </span>
-                    )}
-                  </button>
-                ))}
+                {variants.map((v) => {
+                  const varActive = isVarActive(v);
+                  return (
+                    <button
+                      key={v.variant_id}
+                      type="button"
+                      onClick={() => setSelectedVariantId(v.variant_id)}
+                      className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                        selectedVariantId === v.variant_id
+                          ? "bg-stone-900 text-white shadow-sm ring-2 ring-stone-900"
+                          : "bg-white border border-stone-300 text-stone-700 hover:bg-stone-100"
+                      } ${!varActive ? "border-dashed" : ""}`}
+                    >
+                      <span>ID #{v.variant_id}:</span>
+                      <strong>{v.color_size}</strong>
+                      <span className="text-[10px] opacity-80">(₹{v.selling_price})</span>
+                      {v.discount_percent > 0 && (
+                        <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.5 text-[9px] font-bold">
+                          {v.discount_percent}% OFF
+                        </span>
+                      )}
+                      {!varActive && (
+                        <span className="rounded bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 text-[9px] font-bold">
+                          🔴 Inactive
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -574,6 +590,11 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
                 <option value="1">🟢 Active (Available for customers)</option>
                 <option value="0">🔴 Inactive (Hidden / Discontinued)</option>
               </select>
+              <p className="mt-1 text-[11px] text-stone-500">
+                {isActive
+                  ? "✓ Variant is active: Customers can see and purchase this variant on the storefront."
+                  : "⏸ Variant is inactive: Hidden from customers on the storefront. Staff can reactivate it anytime."}
+              </p>
             </div>
 
             {/* Footer Buttons */}
