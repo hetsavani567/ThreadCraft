@@ -50,7 +50,10 @@ function ProductDetail({
   }, [currentUser, reviewName]);
 
   useEffect(() => {
-    if (!productId) return;
+    if (!productId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
