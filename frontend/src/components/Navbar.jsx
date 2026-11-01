@@ -131,7 +131,7 @@ function Navbar({
         {/* Middle Search Bar */}
         <div className="flex-1 max-w-md mx-1 sm:mx-3">
           <div className="relative w-full">
-            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-stone-400">
+            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-stone-500">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
               </svg>
@@ -169,7 +169,7 @@ function Navbar({
                 }
               }}
               placeholder="Search by name, brand, category..."
-              className="w-full rounded-xl border border-stone-300 bg-stone-50/80 py-2 pl-9 pr-8 text-xs sm:text-sm text-stone-900 placeholder:text-stone-400 outline-none transition focus:border-amber-700 focus:bg-white focus:ring-2 focus:ring-amber-100 shadow-2xs [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden [&::-ms-clear]:hidden"
+              className="w-full rounded-xl border-2 border-stone-400 bg-white py-2 pl-9 pr-8 text-xs sm:text-sm text-stone-900 placeholder:text-stone-500 outline-none transition hover:border-stone-500 focus:border-amber-700 focus:ring-2 focus:ring-amber-200/70 shadow-xs [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden [&::-ms-clear]:hidden"
             />
             {searchQuery && (
               <button
@@ -177,7 +177,7 @@ function Navbar({
                 onClick={() => {
                   if (onSearchChange) onSearchChange("");
                 }}
-                className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-stone-400 hover:text-stone-700 cursor-pointer"
+                className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-stone-500 hover:text-stone-800 cursor-pointer"
                 title="Clear search"
                 aria-label="Clear search"
               >
