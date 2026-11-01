@@ -25,6 +25,10 @@ function ProductDetail({
   const [error, setError] = useState(null);
   const [selectedVariantId, setSelectedVariantId] = useState(null);
   const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [productId, product?.image]);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState("description");
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -714,6 +718,9 @@ function ProductDetail({
                 <img
                   src={product.image}
                   alt={product.name}
+                  referrerPolicy="no-referrer"
+                  crossOrigin="anonymous"
+                  decoding="async"
                   onError={() => setImgError(true)}
                   className="max-h-[480px] w-full object-contain rounded-xl transition duration-300 hover:scale-105"
                 />

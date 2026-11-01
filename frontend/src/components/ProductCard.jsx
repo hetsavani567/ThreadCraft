@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getProductDiscount } from "../utils/discount.js";
 
 function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelectCategory, onSelectProduct }) {
   const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [product?.image, product?.id]);
 
   const variants =
     product.variants && product.variants.length > 0
@@ -64,8 +68,10 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
             <img
               src={product.image}
               alt={product.name}
+              referrerPolicy="no-referrer"
+              crossOrigin="anonymous"
+              decoding="async"
               onError={() => setImgError(true)}
-              loading="lazy"
               className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
             />
           ) : (

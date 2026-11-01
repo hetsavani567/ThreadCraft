@@ -185,6 +185,7 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
                 <img
                   src={imageUrl}
                   alt={product.name}
+                  referrerPolicy="no-referrer"
                   onError={() => setPreviewError(true)}
                   className="h-full w-full object-cover transition"
                 />

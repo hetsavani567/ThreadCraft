@@ -769,6 +769,7 @@ function Dashboard({
                           <img
                             src={item.image}
                             alt={item.name}
+                            referrerPolicy="no-referrer"
                             className="h-full w-full object-cover"
                           />
                         ) : (

@@ -1031,7 +1031,7 @@ function PaymentPage({
                   <div key={item.cartKey} className="flex items-center gap-3 py-3">
                     <div className="h-14 w-12 shrink-0 overflow-hidden rounded-lg bg-stone-100">
                       {item.image ? (
-                        <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+                        <img src={item.image} alt={item.name} referrerPolicy="no-referrer" className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-[10px] text-stone-400">
                           TC

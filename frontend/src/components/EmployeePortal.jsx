@@ -817,6 +817,7 @@ function EmployeePortal({
                                       <img
                                         src={product.image}
                                         alt={product.name}
+                                        referrerPolicy="no-referrer"
                                         className="h-10 w-10 rounded-xl object-cover border border-stone-200 shrink-0"
                                       />
                                     ) : (
@@ -1238,6 +1239,7 @@ function EmployeePortal({
                               <img
                                 src={newProductForm.image_url}
                                 alt="Preview"
+                                referrerPolicy="no-referrer"
                                 className="h-full w-full object-cover"
                                 onError={(e) => {
                                   e.target.style.display = "none";

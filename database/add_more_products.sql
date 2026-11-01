@@ -239,7 +239,7 @@ SELECT
     'Sport Training Duffel Gym Bag', 
     1799.00, 
     'Medium ventilated gym duffel bag with separated shoe compartment and adjustable shoulder strap', 
-    'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=700&q=80',
+    'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=700&q=80',
     (SELECT category_id FROM category WHERE category_type = 'Accessories' LIMIT 1),
     (SELECT brand_id FROM brand WHERE brand_name = 'Adidas' LIMIT 1)
 FROM DUAL
@@ -295,7 +295,7 @@ SELECT
     'Heavyweight Wool Blend Overcoat', 
     4799.00, 
     'Knee-length tailored single-breasted wool overcoat with notched lapels and back vent', 
-    'https://images.unsplash.com/photo-1539533018447-63fcce667883?auto=format&fit=crop&w=700&q=80',
+    'https://images.unsplash.com/photo-1544022613-e87ca75a784a?auto=format&fit=crop&w=700&q=80',
     (SELECT category_id FROM category WHERE category_type = 'Winterwear' LIMIT 1),
     (SELECT brand_id FROM brand WHERE brand_name = 'H&M' LIMIT 1)
 FROM DUAL
@@ -306,7 +306,7 @@ SELECT
     'Cable Knit Ribbed Wool Sweater', 
     2699.00, 
     'Cozy fisherman style cable-knit sweater with ribbed crew neckline and relaxed drape', 
-    'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?auto=format&fit=crop&w=700&q=80',
+    'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&fit=crop&w=700&q=80',
     (SELECT category_id FROM category WHERE category_type = 'Winterwear' LIMIT 1),
     (SELECT brand_id FROM brand WHERE brand_name = 'Zara' LIMIT 1)
 FROM DUAL
@@ -351,7 +351,7 @@ SELECT
     'Tuxedo Peak Lapel Evening Suit', 
     8999.00, 
     'Luxury black-tie formal 2-piece evening suit with satin shawl lapels and matching dress pants', 
-    'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=700&q=80',
+    'https://images.unsplash.com/photo-1593030761757-71fae45fa0e7?auto=format&fit=crop&w=700&q=80',
     (SELECT category_id FROM category WHERE category_type = 'Formal Wear' LIMIT 1),
     (SELECT brand_id FROM brand WHERE brand_name = 'Zara' LIMIT 1)
 FROM DUAL
@@ -385,7 +385,7 @@ SELECT
     'Aeroready Gym Training Tank', 
     1199.00, 
     'Lightweight sleeveless gym tank top engineered with AEROREADY moisture-absorbing technology', 
-    'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?auto=format&fit=crop&w=700&q=80',
+    'https://images.unsplash.com/photo-1571945153237-4929e783af4a?auto=format&fit=crop&w=700&q=80',
     (SELECT category_id FROM category WHERE category_type = 'Activewear' LIMIT 1),
     (SELECT brand_id FROM brand WHERE brand_name = 'Adidas' LIMIT 1)
 FROM DUAL
@@ -419,7 +419,7 @@ SELECT
     'Embroidered Silk Blend Festive Kurta', 
     2299.00, 
     'Traditional festive mandarin collar silk-blend kurta with delicate thread embroidery and side pockets', 
-    'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=700&q=80',
+    'https://images.unsplash.com/photo-1506152983158-b4a74a01c721?auto=format&fit=crop&w=700&q=80',
     (SELECT category_id FROM category WHERE category_type = 'Ethnic Wear' LIMIT 1),
     (SELECT brand_id FROM brand WHERE brand_name = 'Zara' LIMIT 1)
 FROM DUAL
@@ -430,7 +430,7 @@ SELECT
     'Chikankari Handcrafted Cotton Kurta', 
     1599.00, 
     'Lightweight breathable pure cotton summer kurta featuring handcrafted Lucknowi chikankari motif work', 
-    'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=700&q=80',
+    'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?auto=format&fit=crop&w=700&q=80',
     (SELECT category_id FROM category WHERE category_type = 'Ethnic Wear' LIMIT 1),
     (SELECT brand_id FROM brand WHERE brand_name = 'H&M' LIMIT 1)
 FROM DUAL

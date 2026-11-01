@@ -16,3 +16,4 @@
 -- [2026-10-29T15:17:02.922Z] INSERT REVIEW: product_id=1, rating=5, customer="Het Savani"
 -- [2026-10-29T15:30:00.000Z] MIGRATION: Divided generic 'Clothing' category into 'Topwear' (ID: 8) and 'Bottomwear' (ID: 9)
 -- [2026-10-29T16:39:59.727Z] DELETE REVIEW: review_id=22, product_id=3
+-- [2026-10-29T18:48:00.000Z] STANDARDIZATION: Standardized all 31 product Image_URLs to Puma Running Shoes studio e-commerce format (?auto=format&fit=crop&w=700&q=80)
