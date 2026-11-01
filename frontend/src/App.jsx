@@ -97,6 +97,7 @@ function App() {
       } else if (hashLower.startsWith("#category=")) {
         const catValue = decodeURIComponent(fullHash.slice("#category=".length).split("&")[0]);
         setInitialCategoryFilter(catValue);
+        setInitialBrandFilter(null);
         setCurrentView("store");
       } else if (
         hashLower === "#terminal" ||
@@ -109,6 +110,7 @@ function App() {
       } else if (hashLower.startsWith("#brand=")) {
         const brandValue = decodeURIComponent(fullHash.slice("#brand=".length).split("&")[0]);
         setInitialBrandFilter(brandValue);
+        setInitialCategoryFilter(null);
         setCurrentView("store");
       } else {
         // default store view
