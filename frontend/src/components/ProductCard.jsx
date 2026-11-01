@@ -4,15 +4,11 @@ import { getProductDiscount } from "../utils/discount.js";
 function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelectCategory, onSelectProduct }) {
   const [imgError, setImgError] = useState(false);
 
-<<<<<<< HEAD
   useEffect(() => {
     setImgError(false);
   }, [product?.image, product?.id]);
 
-  const variants =
-=======
   const allVariants =
->>>>>>> 677ec24df5958ddaac8b9382eac3a8918ef17532
     product.variants && product.variants.length > 0
       ? product.variants
       : [];
