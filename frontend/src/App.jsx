@@ -13,6 +13,15 @@ function App() {
   const [productHistory, setProductHistory] = useState([]);
   const [initialCategoryFilter, setInitialCategoryFilter] = useState(null);
   const [initialBrandFilter, setInitialBrandFilter] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  function handleSearchChange(newQuery) {
+    setSearchQuery(newQuery);
+    if (newQuery && newQuery.trim() !== "" && currentView !== "store") {
+      setCurrentView("store");
+      window.location.hash = "#products";
+    }
+  }
 
   // Cart State persistent in localStorage
   const [cart, setCart] = useState(() => {
@@ -460,6 +469,8 @@ function App() {
           onNavigateToAuth={navigateToAuth}
           onNavigateToOrders={navigateToOrders}
           onLogout={handleLogout}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
         />
       )}
 
@@ -481,6 +492,8 @@ function App() {
           onAddToCart={handleAddToCart}
           onChangeQuantity={changeQuantity}
           onRemoveFromCart={removeFromCart}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
         />
       )}
 
