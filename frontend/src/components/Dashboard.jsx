@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { apiRequest, fetchProducts, fetchCategories } from "../services/api";
+import { apiRequest, fetchProducts, fetchCategories, updateProductStock } from "../services/api";
 import Navbar from "./Navbar.jsx";
 import ProductCard from "./ProductCard.jsx";
 import CategoryScrollView from "./CategoryScrollView.jsx";
@@ -24,18 +24,49 @@ function Dashboard({
   onAddToCart: externalOnAddToCart,
   onChangeQuantity: externalOnChangeQuantity,
   onRemoveFromCart: externalOnRemoveFromCart,
+  searchQuery: externalSearch,
+  onSearchChange: externalOnSearchChange,
 }) {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(["All"]);
-  const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedBrand, setSelectedBrand] = useState("All");
+  const [internalSearch, setInternalSearch] = useState("");
+  const search = externalSearch !== undefined ? externalSearch : internalSearch;
+  const setSearch = externalOnSearchChange || setInternalSearch;
+  const [selectedCategory, setSelectedCategory] = useState(initialCategoryFilter || "All");
+  const [selectedBrand, setSelectedBrand] = useState(initialBrandFilter || "All");
   const [internalCart, setInternalCart] = useState([]);
   const cart = externalCart !== undefined ? externalCart : internalCart;
   const setCart = externalSetCart || setInternalCart;
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isEmployeePortalOpen, setIsEmployeePortalOpen] = useState(false);
+  const [isEmployeePortalOpen, setIsEmployeePortalOpen] = useState(() => {
+    const hash = (window.location.hash || "").toLowerCase();
+    return (
+      hash === "#terminal" ||
+      hash === "#portal" ||
+      hash === "#staff" ||
+      hash === "#employee" ||
+      hash === "#staff-terminal"
+    );
+  });
+
+  useEffect(() => {
+    function handleTerminalHash() {
+      const hash = (window.location.hash || "").toLowerCase();
+      if (
+        hash === "#terminal" ||
+        hash === "#portal" ||
+        hash === "#staff" ||
+        hash === "#employee" ||
+        hash === "#staff-terminal"
+      ) {
+        setIsEmployeePortalOpen(true);
+      }
+    }
+    handleTerminalHash();
+    window.addEventListener("hashchange", handleTerminalHash);
+    return () => window.removeEventListener("hashchange", handleTerminalHash);
+  }, []);
   const [editingVariantProduct, setEditingVariantProduct] = useState(null);
   const [staffDiscountActive, setStaffDiscountActive] = useState(false);
   const [isPaymentPageOpen, setIsPaymentPageOpen] = useState(false);
@@ -68,10 +99,17 @@ function Dashboard({
     }
   }
 
-  const isEmployee = currentUser?.role === "employee";
+  const isEmployee = Boolean(
+    currentUser &&
+      (currentUser.role === "employee" ||
+        currentUser.userType === "employee" ||
+        Boolean(currentUser.emp_id) ||
+        (currentUser.email && currentUser.email.toLowerCase().endsWith("@thread.com")))
+  );
 
-  // Employee live stock update handler (purely client-side state)
-  function handleUpdateStock(productId, delta) {
+  // Employee live stock update handler - Persists directly to MySQL database
+  async function handleUpdateStock(productId, delta) {
+    // 1. Optimistic UI update so the interface is instantaneous
     setProducts((prev) =>
       prev.map((p) =>
         p.id === productId
@@ -79,6 +117,31 @@ function Dashboard({
           : p
       )
     );
+
+    // 2. Persist to MySQL database via API
+    try {
+      const branchId = currentUser?.branch_id || 1;
+      const res = await updateProductStock(productId, { delta, branch_id: branchId });
+      if (res?.success && res.total_stock !== undefined) {
+        // Sync with exact database total_stock
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === productId ? { ...p, total_stock: res.total_stock } : p
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Failed to persist stock update in MySQL:", err);
+      // Revert on failure
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId
+            ? { ...p, total_stock: Math.max(0, (p.total_stock || 0) - delta) }
+            : p
+        )
+      );
+      alert(`Could not save stock update to MySQL database: ${err.message}`);
+    }
   }
 
   // Fetch products and categories from MySQL database
@@ -143,34 +206,102 @@ function Dashboard({
     loadData();
   }, [loadData]);
 
-  // // Listen for initial filter props from breadcrumb links
-  // useEffect(() => {
-  //   if (initialBrandFilter) {
-  //     setSelectedBrand(initialBrandFilter);
-  //     setSelectedCategory("All");
-  //     // Scroll to products
-  //     setTimeout(() => {
-  //       const el = document.getElementById("products");
-  //       if (el) el.scrollIntoView({ behavior: "smooth" });
-  //     }, 100);
-  //   }
-  // }, [initialBrandFilter]);
+  // Listen for initialCategoryFilter prop from breadcrumb links / App.jsx
+  useEffect(() => {
+    if (initialCategoryFilter) {
+      setSelectedCategory(initialCategoryFilter);
+      setSelectedBrand("All");
+      setSearch("");
+      if (externalOnSearchChange) externalOnSearchChange("");
+      setTimeout(() => {
+        const el = document.getElementById("products");
+        if (el) {
+          const header = document.querySelector("header");
+          const navbarHeight = header ? header.offsetHeight : 61;
+          const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+          window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+        }
+      }, 100);
+    }
+  }, [initialCategoryFilter]);
 
-  // Synchronize hash navigation for #payment
+  // Listen for initialBrandFilter prop from breadcrumb links / App.jsx
+  useEffect(() => {
+    if (initialBrandFilter) {
+      setSelectedBrand(initialBrandFilter);
+      setSelectedCategory("All");
+      setSearch("");
+      if (externalOnSearchChange) externalOnSearchChange("");
+      setTimeout(() => {
+        const el = document.getElementById("products");
+        if (el) {
+          const header = document.querySelector("header");
+          const navbarHeight = header ? header.offsetHeight : 61;
+          const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+          window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+        }
+      }, 100);
+    }
+  }, [initialBrandFilter]);
+
+  // Synchronize hash navigation for #payment, #products, #cart, #category, and #brand
   useEffect(() => {
     function handleHashChange() {
-      const hash = window.location.hash.toLowerCase();
+      const fullHash = window.location.hash || "";
+      const hash = fullHash.toLowerCase();
       if (hash === "#payment") {
         setIsPaymentPageOpen(true);
       } else if (hash === "#home" || hash === "#products" || hash === "#cart") {
         setIsPaymentPageOpen(false);
+      }
+
+      if (hash.startsWith("#category=")) {
+        const cat = decodeURIComponent(fullHash.slice("#category=".length).split("&")[0]);
+        if (cat) {
+          setSelectedCategory(cat);
+          setSelectedBrand("All");
+          setSearch("");
+          if (externalOnSearchChange) externalOnSearchChange("");
+          setIsPaymentPageOpen(false);
+        }
+      } else if (hash.startsWith("#brand=")) {
+        const br = decodeURIComponent(fullHash.slice("#brand=".length).split("&")[0]);
+        if (br) {
+          setSelectedBrand(br);
+          setSelectedCategory("All");
+          setSearch("");
+          if (externalOnSearchChange) externalOnSearchChange("");
+          setIsPaymentPageOpen(false);
+        }
+      }
+
+      if (hash === "#products" || hash.startsWith("#category=") || hash.startsWith("#brand=")) {
+        setTimeout(() => {
+          const el = document.getElementById("products");
+          if (el) {
+            const header = document.querySelector("header");
+            const navbarHeight = header ? header.offsetHeight : 61;
+            const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+            window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+          }
+        }, 80);
+      } else if (hash === "#cart") {
+        setTimeout(() => {
+          const el = document.getElementById("cart");
+          if (el) {
+            const header = document.querySelector("header");
+            const navbarHeight = header ? header.offsetHeight : 61;
+            const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+            window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+          }
+        }, 80);
       }
     }
 
     handleHashChange();
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
+  }, [isLoading]);
 
   // Track visibility of Shop section and Cart section to float/hide bottom cart button
   const [isShopVisible, setIsShopVisible] = useState(false);
@@ -216,11 +347,33 @@ function Dashboard({
     }
   }
 
-  // Select a category and open in Grid View with smooth scroll
+  // Smooth scroll to products section with navbar offset
+  function scrollToProducts(e) {
+    if (e) e.preventDefault();
+    const el = document.getElementById("products");
+    if (el) {
+      const header = document.querySelector("header");
+      const navbarHeight = header ? header.offsetHeight : 61;
+      const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+      window.history.pushState(null, "", "#products");
+    } else {
+      window.location.hash = "#products";
+    }
+  }
+
+  // Select a category and open in Grid View (or Horizontal View if "All") with smooth scroll
   function handleSelectCategory(category) {
+    setSearch("");
+    if (externalOnSearchChange) externalOnSearchChange("");
     setSelectedCategory(category);
-    if (category !== "All") setSelectedBrand("All");
+    setSelectedBrand("All");
     if (onClearInitialFilters) onClearInitialFilters();
+    if (category === "All") {
+      window.history.pushState(null, "", "#products");
+    } else {
+      window.history.pushState(null, "", `#category=${encodeURIComponent(category)}`);
+    }
     const el = document.getElementById("products");
     if (el) {
       const header = document.querySelector("header");
@@ -234,7 +387,13 @@ function Dashboard({
   function handleAddToCart(product, quantity = 1) {
     if (!currentUser) {
       if (onNavigateToAuth) {
-        onNavigateToAuth();
+        onNavigateToAuth({
+          returnHash: window.location.hash || `#product?id=${product.id}`,
+          returnProductId: product.id,
+          pendingItem: product,
+          quantity,
+          isBuyNow: false,
+        });
       } else {
         window.location.hash = "#auth";
       }
@@ -311,6 +470,18 @@ function Dashboard({
 
 
   const filteredProducts = products.filter((product) => {
+    // For customers & guests: completely hide products that have NO active variants!
+    // Employees can see all products so they can reactivate or manage inactive ones.
+    if (!isEmployee) {
+      const allVars = Array.isArray(product.variants) ? product.variants : [];
+      const hasActive = allVars.length === 0
+        ? Boolean(product.has_active_variant)
+        : allVars.some((v) => v.is_active === 1 || v.is_active === true || v.is_active === "1");
+      if (!hasActive) {
+        return false;
+      }
+    }
+
     const searchLower = search.toLowerCase();
     const matchesSearch =
       !search ||
@@ -383,6 +554,8 @@ function Dashboard({
         onLogout={onLogout}
         onOpenEmployeePortal={() => setIsEmployeePortalOpen(true)}
         onNavigateToOrders={onNavigateToOrders}
+        searchQuery={search}
+        onSearchChange={setSearch}
       />
 
       <main>
@@ -461,36 +634,6 @@ function Dashboard({
                 Shop your style
               </h2>
             </div>
-
-            <div className="w-full sm:max-w-sm">
-              <label
-                htmlFor="product-search"
-                className="mb-2 block text-sm font-semibold"
-              >
-                Search products
-              </label>
-
-              <div className="relative">
-                <input
-                  id="product-search"
-                  type="search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search by name, brand, category..."
-                  className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 pr-10 outline-none focus:border-amber-700 focus:ring-2 focus:ring-amber-100 transition"
-                />
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() => setSearch("")}
-                    className="absolute right-3 top-3 text-stone-400 hover:text-stone-600"
-                    aria-label="Clear search"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            </div>
           </div>
 
           {/* Category & Active Filter Pills */}
@@ -500,9 +643,9 @@ function Dashboard({
                 key={category}
                 type="button"
                 onClick={() => handleSelectCategory(category)}
-                aria-pressed={selectedCategory === category && selectedBrand === "All"}
+                aria-pressed={selectedCategory === category && selectedBrand === "All" && !search}
                 className={`rounded-full px-5 py-2.5 text-sm font-semibold transition cursor-pointer ${
-                  selectedCategory === category && selectedBrand === "All"
+                  selectedCategory === category && selectedBrand === "All" && !search
                     ? "bg-stone-900 text-white shadow-sm"
                     : "border border-stone-300 bg-white text-stone-700 hover:border-stone-900"
                 }`}
@@ -519,6 +662,13 @@ function Dashboard({
                   onClick={() => {
                     setSelectedBrand("All");
                     if (onClearInitialFilters) onClearInitialFilters();
+                    window.history.pushState(
+                      null,
+                      "",
+                      selectedCategory !== "All"
+                        ? `#category=${encodeURIComponent(selectedCategory)}`
+                        : "#products"
+                    );
                   }}
                   className="hover:text-red-600 text-xs cursor-pointer ml-1"
                   title="Clear brand filter"
@@ -654,41 +804,25 @@ function Dashboard({
             <div className="mt-8 rounded-2xl bg-white p-10 text-center border border-stone-200">
               <h3 className="text-xl font-bold">No products found</h3>
               <p className="mt-2 text-stone-600">
-                Try another search term or select another category.
+                {search ? `No products match "${search}". Try another search term.` : "Try another search term or select another category."}
               </p>
               <button
                 type="button"
                 onClick={() => {
                   setSearch("");
                   setSelectedCategory("All");
+                  setSelectedBrand("All");
+                  if (onClearInitialFilters) onClearInitialFilters();
+                  window.location.hash = "#products";
                 }}
                 className="mt-4 rounded-full bg-stone-900 px-5 py-2.5 text-white hover:bg-amber-700 transition cursor-pointer"
               >
                 Clear filters
               </button>
             </div>
-          ) : selectedCategory !== "All" ? (
-            /* Specific Category Selected: RENDER IN GRID FORMAT */
+          ) : (selectedCategory !== "All" || selectedBrand !== "All" || (search && search.trim() !== "")) ? (
+            /* Specific Category, Brand, or Active Search: RENDER IN GRID FORMAT */
             <div className="mt-6">
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200/80 bg-white px-5 py-3.5 shadow-xs">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse" />
-                  <p className="text-sm font-bold text-stone-800">
-                    Showing <span className="text-amber-800 font-black">{selectedCategory}</span> products in Grid View
-                  </p>
-                  <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-bold text-stone-600 border border-stone-200">
-                    {filteredProducts.length} {filteredProducts.length === 1 ? "item" : "items"}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategory("All")}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 hover:text-amber-900 transition cursor-pointer"
-                >
-                  <span>← Switch to All Categories (Horizontal View)</span>
-                </button>
-              </div>
-
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 {filteredProducts.map((product) => (
                   <ProductCard
@@ -751,7 +885,8 @@ function Dashboard({
                 </p>
                 <a
                   href="#products"
-                  className="mt-5 inline-block rounded-full bg-stone-900 px-6 py-3 font-semibold text-white hover:bg-amber-700 transition"
+                  onClick={scrollToProducts}
+                  className="mt-5 inline-block rounded-full bg-stone-900 px-6 py-3 font-semibold text-white hover:bg-amber-700 transition cursor-pointer"
                 >
                   Browse Products
                 </a>
@@ -1062,12 +1197,17 @@ function Dashboard({
                           color_size: updated.color_size,
                           selling_price: updated.selling_price,
                           is_active: updated.is_active,
+                          discount_percent: updated.discount_percent,
                         }
                       : v
                   );
+                  const hasActiveVariant = updatedVariants.some(
+                    (v) => v.is_active === 1 || v.is_active === true || v.is_active === "1"
+                  ) ? 1 : 0;
                   return {
                     ...p,
                     variants: updatedVariants,
+                    has_active_variant: hasActiveVariant,
                     price: updated.selling_price || p.price,
                     image: updated.image !== undefined ? updated.image : p.image,
                   };
@@ -1075,6 +1215,35 @@ function Dashboard({
                 return p;
               })
             );
+
+            // Also keep editingVariantProduct in sync if still open
+            setEditingVariantProduct((prev) => {
+              if (!prev || prev.product?.id !== updated.productId) return prev;
+              const nextVariants = (prev.product.variants || []).map((v) =>
+                v.variant_id === updated.variant_id
+                  ? {
+                      ...v,
+                      color_size: updated.color_size,
+                      selling_price: updated.selling_price,
+                      is_active: updated.is_active,
+                      discount_percent: updated.discount_percent,
+                    }
+                  : v
+              );
+              return {
+                ...prev,
+                product: {
+                  ...prev.product,
+                  variants: nextVariants,
+                  image: updated.image !== undefined ? updated.image : prev.product.image,
+                },
+                variant: {
+                  ...prev.variant,
+                  ...updated,
+                },
+              };
+            });
+
             // Refresh catalog from MySQL database
             await loadData();
           }}

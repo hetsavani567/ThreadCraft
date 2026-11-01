@@ -9,7 +9,7 @@ import {
   logoutAllDevices,
 } from "../services/api";
 
-function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) {
+function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout, onNavigateAfterLogin, onCancelAuth }) {
   const [mode, setMode] = useState("signin");
   const [showPassword, setShowPassword] = useState(false);
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
@@ -151,7 +151,11 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
         setSuccessMessage(response.message || `Welcome back, ${response.user.name}!`);
         setTimeout(() => {
           onLoginSuccess(response.user);
-          onNavigateToStore();
+          if (onNavigateAfterLogin) {
+            onNavigateAfterLogin(response.user);
+          } else {
+            onNavigateToStore();
+          }
         }, 600);
       } else {
         setFormErrors({ submit: response.message || "Failed to sign in." });
@@ -225,7 +229,11 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
         setSuccessMessage(response.message || `Account created successfully!`);
         setTimeout(() => {
           onLoginSuccess(response.user);
-          onNavigateToStore();
+          if (onNavigateAfterLogin) {
+            onNavigateAfterLogin(response.user);
+          } else {
+            onNavigateToStore();
+          }
         }, 600);
       } else {
         setFormErrors({ submit: response.message || "Registration failed." });
@@ -285,7 +293,11 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
           setSuccessMessage(`Signed in as ${user.name} via Google`);
           setTimeout(() => {
             onLoginSuccess(user);
-            onNavigateToStore();
+            if (onNavigateAfterLogin) {
+              onNavigateAfterLogin(user);
+            } else {
+              onNavigateToStore();
+            }
           }, 500);
         }
       };
@@ -428,10 +440,10 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
     <div className="min-h-screen bg-stone-50 px-4 py-8 flex flex-col items-center justify-center">
       <div className="mb-5 flex w-full max-w-md items-center justify-between">
         <button
-          onClick={onNavigateToStore}
-          className="text-sm font-medium text-stone-600 hover:text-stone-900 transition flex items-center gap-1"
+          onClick={onCancelAuth || onNavigateToStore}
+          className="text-sm font-medium text-stone-600 hover:text-stone-900 transition flex items-center gap-1 cursor-pointer"
         >
-          ← Back to Store
+          ← Back
         </button>
         <button
           onClick={onNavigateToStore}
@@ -446,9 +458,6 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
           <h1 className="text-2xl font-bold text-stone-900">
             {mode === "signin" ? "Sign In to ThreadCraft" : "Create your Account"}
           </h1>
-          <p className="mt-1 text-xs text-stone-500">
-            Secure session authentication with access &amp; refresh JWT tokens.
-          </p>
 
           {/* Mode Switch Tabs */}
           <div className="mt-5 grid grid-cols-2 gap-2 border-b border-stone-200">
@@ -655,18 +664,6 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout }) 
           ) : (
             /* SIGN UP FORM */
             <form onSubmit={handleSignUpSubmit} className="mt-4 max-h-[58vh] space-y-3.5 overflow-y-auto pr-1">
-              <div
-                className={`rounded-xl border p-3 text-xs ${
-                  signupIsEmployee
-                    ? "border-amber-200 bg-amber-50 text-amber-900"
-                    : "border-stone-200 bg-stone-50 text-stone-600"
-                }`}
-              >
-                {signupIsEmployee
-                  ? "👔 Employee registration: @thread.com email activates staff portal permissions."
-                  : "👤 Customer registration: creates your retail clothing profile."}
-              </div>
-
               <div>
                 <label className="mb-1 block text-xs font-semibold text-stone-700">Full Name</label>
                 <input

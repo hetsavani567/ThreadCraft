@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { fetchCategories, fetchBrands, createProduct } from "../services/api";
+import { fetchCategories, fetchBrands, createProduct, addProductVariant } from "../services/api";
 import BannerManager from "./BannerManager.jsx";
 
 function EmployeePortal({
@@ -15,7 +15,6 @@ function EmployeePortal({
   onUpdateBannerSlides,
 }) {
   const [activeTab, setActiveTab] = useState("inventory"); // "inventory" | "new-product" | "orders" | "pos" | "banner"
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [stockSuccess, setStockSuccess] = useState("");
 
   // Inventory filtering & search
@@ -37,12 +36,41 @@ function EmployeePortal({
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
 
-  // Form State for Adding Product & Variant
+  // Catalog Sub-Mode: "product-only" | "variant-only" | "both"
+  const [catalogMode, setCatalogMode] = useState("product-only");
+  const [lastCreatedProductId, setLastCreatedProductId] = useState(null);
+
+  // 1. Form State: Adding Product Only
+  const initialProductOnlyState = {
+    product_name: "",
+    category_id: "",
+    brand_id: "",
+    product_description: "",
+    image_url: "",
+  };
+  const [productOnlyForm, setProductOnlyForm] = useState(initialProductOnlyState);
+  const [productOnlyErrors, setProductOnlyErrors] = useState({});
+  const [productOnlyLoading, setProductOnlyLoading] = useState(false);
+  const [productOnlySuccess, setProductOnlySuccess] = useState("");
+
+  // 2. Form State: Adding Product Variant Only
+  const initialVariantOnlyState = {
+    product_id: "",
+    color_size: "",
+    selling_price: "",
+    discount_percent: "0",
+    initial_stock: "25",
+  };
+  const [variantOnlyForm, setVariantOnlyForm] = useState(initialVariantOnlyState);
+  const [variantOnlyErrors, setVariantOnlyErrors] = useState({});
+  const [variantOnlyLoading, setVariantOnlyLoading] = useState(false);
+  const [variantOnlySuccess, setVariantOnlySuccess] = useState("");
+
+  // 3. Form State: Adding Both Product & Variant (Bundle)
   const initialFormState = {
     product_name: "",
     category_id: "",
     brand_id: "",
-    base_price: "",
     product_description: "",
     image_url: "",
     color_size: "",
@@ -176,12 +204,20 @@ function EmployeePortal({
     });
   }, [orders, ordersFilter, ordersSearch]);
 
-  if (!isOpen) return null;
+  // Target product for Variant-Only mode (lookup by entered/selected Product ID)
+  const selectedTargetProduct = useMemo(() => {
+    if (!variantOnlyForm.product_id) return null;
+    const pId = Number(variantOnlyForm.product_id);
+    if (isNaN(pId) || pId <= 0) return null;
+    return products.find((p) => p.id === pId) || null;
+  }, [products, variantOnlyForm.product_id]);
 
-  function handleQuickStock(productId, delta) {
-    onUpdateStock(productId, delta);
-    setStockSuccess(`Stock adjusted (${delta > 0 ? `+${delta}` : delta}) for product #${productId}`);
-    setTimeout(() => setStockSuccess(""), 2500);
+  async function handleQuickStock(productId, delta) {
+    if (onUpdateStock) {
+      await onUpdateStock(productId, delta);
+    }
+    setStockSuccess(`Stock adjusted (${delta > 0 ? `+${delta}` : delta}) for product #${productId} & saved to MySQL database`);
+    setTimeout(() => setStockSuccess(""), 3000);
   }
 
   function handleOrderStatusChange(orderId, newStatus) {
@@ -190,14 +226,188 @@ function EmployeePortal({
     );
   }
 
-  function handleFieldChange(field, value) {
-    setNewProductForm((prev) => {
-      const next = { ...prev, [field]: value };
-      if (field === "base_price" && (!prev.selling_price || prev.selling_price === prev.base_price)) {
-        next.selling_price = value;
+  function handleProductOnlyFieldChange(field, value) {
+    setProductOnlyForm((prev) => ({ ...prev, [field]: value }));
+    if (productOnlyErrors[field] || productOnlyErrors.submit) {
+      setProductOnlyErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        delete next.submit;
+        return next;
+      });
+    }
+  }
+
+  async function handleCreateProductOnlySubmit(e) {
+    e.preventDefault();
+    setProductOnlyErrors({});
+    setProductOnlySuccess("");
+
+    const errors = {};
+    const trimmedName = (productOnlyForm.product_name || "").trim();
+    if (!trimmedName) {
+      errors.product_name = "Product name is required.";
+    } else if (trimmedName.length < 3) {
+      errors.product_name = "Product name must be at least 3 characters long.";
+    } else if (trimmedName.length > 150) {
+      errors.product_name = "Product name cannot exceed 150 characters.";
+    }
+
+    const catId = Number(productOnlyForm.category_id);
+    if (!productOnlyForm.category_id || isNaN(catId) || catId <= 0) {
+      errors.category_id = "Please select a valid product category.";
+    }
+
+    const brId = Number(productOnlyForm.brand_id);
+    if (!productOnlyForm.brand_id || isNaN(brId) || brId <= 0) {
+      errors.brand_id = "Please select a valid brand.";
+    }
+
+    // MANDATORY Product Image URL
+    const trimmedImg = (productOnlyForm.image_url || "").trim();
+    if (!trimmedImg) {
+      errors.image_url = "Product image web URL is mandatory.";
+    } else {
+      try {
+        const parsed = new URL(trimmedImg);
+        if (!["http:", "https:"].includes(parsed.protocol)) {
+          errors.image_url = "Image URL must start with http:// or https://";
+        }
+      } catch (_) {
+        errors.image_url = "Please enter a valid image web URL.";
       }
-      return next;
-    });
+    }
+
+    if (productOnlyForm.product_description && productOnlyForm.product_description.length > 500) {
+      errors.product_description = "Description cannot exceed 500 characters.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setProductOnlyErrors(errors);
+      return;
+    }
+
+    setProductOnlyLoading(true);
+    try {
+      const payload = {
+        product_name: trimmedName,
+        category_id: catId,
+        brand_id: brId,
+        product_description: (productOnlyForm.product_description || "").trim(),
+        image_url: trimmedImg,
+        product_only: true,
+      };
+
+      const res = await createProduct(payload);
+      const newId = res?.product?.id || res?.product?.product_id;
+      if (newId) setLastCreatedProductId(newId);
+
+      setProductOnlySuccess(
+        newId
+          ? `Product #${newId} - "${payload.product_name}" created successfully in MySQL product table!`
+          : `Product "${payload.product_name}" created successfully in MySQL product table!`
+      );
+      setProductOnlyForm(initialProductOnlyState);
+
+      if (onProductCreated) {
+        await onProductCreated();
+      }
+    } catch (err) {
+      setProductOnlyErrors({ submit: err.message || "Failed to add product to database." });
+    } finally {
+      setProductOnlyLoading(false);
+    }
+  }
+
+  function handleVariantOnlyFieldChange(field, value) {
+    setVariantOnlyForm((prev) => ({ ...prev, [field]: value }));
+    if (variantOnlyErrors[field] || variantOnlyErrors.submit) {
+      setVariantOnlyErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        delete next.submit;
+        return next;
+      });
+    }
+  }
+
+  async function handleCreateVariantOnlySubmit(e) {
+    e.preventDefault();
+    setVariantOnlyErrors({});
+    setVariantOnlySuccess("");
+
+    const errors = {};
+    const pId = Number(variantOnlyForm.product_id);
+    if (!variantOnlyForm.product_id || isNaN(pId) || pId <= 0) {
+      errors.product_id = "Please enter or select a valid Product ID.";
+    }
+
+    const trimmedColorSize = (variantOnlyForm.color_size || "").trim();
+    if (!trimmedColorSize) {
+      errors.color_size = "Variant size/color is required (e.g. 'Black-M' or 'Free-Size').";
+    } else if (trimmedColorSize.length > 50) {
+      errors.color_size = "Variant description cannot exceed 50 characters.";
+    }
+
+    const priceNum = Number(variantOnlyForm.selling_price);
+    if (!variantOnlyForm.selling_price || isNaN(priceNum) || priceNum <= 0) {
+      errors.selling_price = "Selling price must be a positive number greater than ₹0.";
+    } else if (priceNum > 10000000) {
+      errors.selling_price = "Selling price cannot exceed ₹1,00,00,000.";
+    }
+
+    const discountNum = Number(variantOnlyForm.discount_percent);
+    if (
+      variantOnlyForm.discount_percent !== "" &&
+      (isNaN(discountNum) || discountNum < 0 || discountNum > 90)
+    ) {
+      errors.discount_percent = "Discount percentage must be between 0% and 90%.";
+    }
+
+    const stockVal = variantOnlyForm.initial_stock;
+    const stockNum = stockVal === "" ? 0 : Number(stockVal);
+    if (isNaN(stockNum) || stockNum < 0 || !Number.isInteger(stockNum)) {
+      errors.initial_stock = "Stock quantity must be a non-negative whole integer (0 or more).";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setVariantOnlyErrors(errors);
+      return;
+    }
+
+    setVariantOnlyLoading(true);
+    try {
+      const payload = {
+        color_size: trimmedColorSize,
+        selling_price: priceNum,
+        discount_percent: Math.round(discountNum || 0),
+        initial_stock: stockNum,
+        branch_id: employee?.branch_id || 1,
+      };
+
+      await addProductVariant(pId, payload);
+      const targetName = selectedTargetProduct?.name ? ` to "${selectedTargetProduct.name}"` : "";
+
+      setVariantOnlySuccess(
+        `Variant "${trimmedColorSize}" (₹${priceNum}, Stock: ${stockNum}) successfully added${targetName} (Product #${pId}) in MySQL database!`
+      );
+      setVariantOnlyForm((prev) => ({
+        ...initialVariantOnlyState,
+        product_id: prev.product_id,
+      }));
+
+      if (onProductCreated) {
+        await onProductCreated();
+      }
+    } catch (err) {
+      setVariantOnlyErrors({ submit: err.message || "Failed to add variant to product." });
+    } finally {
+      setVariantOnlyLoading(false);
+    }
+  }
+
+  function handleFieldChange(field, value) {
+    setNewProductForm((prev) => ({ ...prev, [field]: value }));
 
     if (formErrors[field] || formErrors.submit) {
       setFormErrors((prev) => {
@@ -235,13 +445,6 @@ function EmployeePortal({
       errors.brand_id = "Please select a valid brand.";
     }
 
-    const basePriceNum = Number(newProductForm.base_price);
-    if (!newProductForm.base_price || isNaN(basePriceNum) || basePriceNum <= 0) {
-      errors.base_price = "Base price must be a valid number greater than ₹0.";
-    } else if (basePriceNum > 10000000) {
-      errors.base_price = "Base price cannot exceed ₹1,00,00,000.";
-    }
-
     const trimmedColorSize = (newProductForm.color_size || "").trim();
     if (!trimmedColorSize) {
       errors.color_size = "Variant size/color is required (e.g. 'Black-M' or 'Free-Size').";
@@ -249,9 +452,8 @@ function EmployeePortal({
       errors.color_size = "Variant description cannot exceed 50 characters.";
     }
 
-    const rawSellingPrice = newProductForm.selling_price || newProductForm.base_price;
-    const sellingPriceNum = Number(rawSellingPrice);
-    if (rawSellingPrice === undefined || rawSellingPrice === "" || isNaN(sellingPriceNum) || sellingPriceNum <= 0) {
+    const sellingPriceNum = Number(newProductForm.selling_price);
+    if (!newProductForm.selling_price || isNaN(sellingPriceNum) || sellingPriceNum <= 0) {
       errors.selling_price = "Selling price must be a positive number greater than ₹0.";
     } else if (sellingPriceNum > 10000000) {
       errors.selling_price = "Selling price cannot exceed ₹1,00,00,000.";
@@ -263,15 +465,18 @@ function EmployeePortal({
       errors.initial_stock = "Stock quantity must be a non-negative whole integer (0 or more).";
     }
 
+    // MANDATORY Product Image URL
     const trimmedImg = (newProductForm.image_url || "").trim();
-    if (trimmedImg) {
+    if (!trimmedImg) {
+      errors.image_url = "Product image web URL is mandatory.";
+    } else {
       try {
         const parsed = new URL(trimmedImg);
         if (!["http:", "https:"].includes(parsed.protocol)) {
           errors.image_url = "Image URL must start with http:// or https://";
         }
       } catch (_) {
-        errors.image_url = "Please enter a valid image web URL or leave blank.";
+        errors.image_url = "Please enter a valid image web URL.";
       }
     }
 
@@ -290,11 +495,8 @@ function EmployeePortal({
         product_name: trimmedName,
         category_id: catId,
         brand_id: brId,
-        base_price: basePriceNum,
         product_description: (newProductForm.product_description || "").trim(),
-        image_url:
-          trimmedImg ||
-          "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=700&q=80",
+        image_url: trimmedImg,
         color_size: trimmedColorSize,
         selling_price: sellingPriceNum,
         initial_stock: stockNum,
@@ -364,21 +566,11 @@ function EmployeePortal({
 
   const currentTabObj = navItems.find((n) => n.id === activeTab) || navItems[0];
 
+  if (!isOpen) return null;
+
   return (
-    <div
-      className={
-        isFullscreen
-          ? "fixed inset-0 z-50 flex h-screen w-screen overflow-hidden bg-stone-950 font-sans"
-          : "fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-2 sm:p-4 md:p-6 backdrop-blur-xs font-sans animate-fadeIn"
-      }
-    >
-      <div
-        className={
-          isFullscreen
-            ? "relative flex h-full w-full flex-col md:flex-row overflow-hidden bg-stone-950"
-            : "relative flex h-[94vh] w-full max-w-[1440px] flex-col md:flex-row overflow-hidden rounded-3xl bg-stone-950 shadow-2xl border border-stone-800"
-        }
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-2 sm:p-4 md:p-6 backdrop-blur-xs font-sans animate-fadeIn">
+      <div className="relative flex h-[94vh] w-full max-w-[1440px] flex-col md:flex-row overflow-hidden rounded-3xl bg-stone-950 shadow-2xl border border-stone-800">
         {/* ========================================================================= */}
         {/* LEFT VERTICAL SIDEBAR                                                     */}
         {/* ========================================================================= */}
@@ -409,14 +601,6 @@ function EmployeePortal({
               <div className="flex md:hidden items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsFullscreen(!isFullscreen)}
-                  className="rounded-lg p-1.5 text-stone-400 hover:text-white bg-stone-900 border border-stone-800"
-                  title="Toggle Fullscreen"
-                >
-                  {isFullscreen ? "⧉" : "⛶"}
-                </button>
-                <button
-                  type="button"
                   onClick={onClose}
                   className="rounded-lg p-1.5 text-stone-400 hover:text-white bg-stone-900 border border-stone-800"
                   title="Close Terminal"
@@ -438,11 +622,11 @@ function EmployeePortal({
             <div className="mt-4 rounded-2xl bg-stone-900/90 p-3 border border-stone-800/90 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="h-8 w-8 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs flex items-center justify-center">
-                  {(employee?.name || "Staff").slice(0, 2).toUpperCase()}
+                  {(employee?.name || employee?.emp_name || "Staff").slice(0, 2).toUpperCase()}
                 </div>
                 <div>
                   <div className="text-xs font-bold text-stone-200 leading-tight">
-                    {employee?.name || "Verified Associate"}
+                    {employee?.name || employee?.emp_name || "Verified Associate"}
                   </div>
                   <div className="text-[10px] text-stone-400 font-mono">
                     ID: EMP-{employee?.emp_id || "101"} • {employee?.emp_role || "Staff"}
@@ -548,25 +732,14 @@ function EmployeePortal({
 
           {/* Sidebar Footer Controls */}
           <div className="p-3 border-t border-stone-800/80 bg-stone-950 hidden md:flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsFullscreen(!isFullscreen)}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-stone-900 border border-stone-800 px-3 py-2 text-xs font-semibold text-stone-300 hover:text-white hover:bg-stone-800 transition cursor-pointer"
-                title={isFullscreen ? "Exit Fullscreen (Restore Window)" : "Maximize to Fullscreen"}
-              >
-                <span>{isFullscreen ? "⧉ Restore Window" : "⛶ Fullscreen Mode"}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex items-center justify-center rounded-xl bg-stone-900 border border-stone-800 px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-950/40 hover:border-red-800/50 transition cursor-pointer"
-                title="Exit Terminal"
-              >
-                <span>✕ Exit</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-stone-900 border border-stone-800 px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-950/40 hover:border-red-800/50 transition cursor-pointer"
+              title="Exit Terminal"
+            >
+              <span>✕ Exit</span>
+            </button>
             <div className="text-center text-[10px] text-stone-400 tracking-wider">
               ThreadCraft Terminal v2.4 • Shift Active
             </div>
@@ -624,32 +797,8 @@ function EmployeePortal({
                 <span className="text-xs font-black text-stone-900">{orders.length}</span>
               </div>
 
-              {/* Fullscreen & Close Window Controls */}
+              {/* Close Window Control */}
               <div className="flex items-center gap-1.5 pl-2 border-l border-stone-200">
-                <button
-                  type="button"
-                  onClick={() => setIsFullscreen(!isFullscreen)}
-                  className="rounded-xl border border-stone-200 bg-stone-50 p-2 text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition cursor-pointer"
-                  title={isFullscreen ? "Restore Window" : "Maximize Fullscreen"}
-                  aria-label="Toggle Fullscreen"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    {isFullscreen ? (
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"
-                      />
-                    ) : (
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
-                      />
-                    )}
-                  </svg>
-                </button>
-
                 <button
                   type="button"
                   onClick={onClose}
@@ -908,7 +1057,7 @@ function EmployeePortal({
             )}
 
             {/* ========================================================================= */}
-            {/* TAB 2: ADD PRODUCT & VARIANT (DIRECT MYSQL INSERT)                        */}
+            {/* TAB 2: CATALOG MANAGEMENT (ADD PRODUCT / ADD VARIANT)                     */}
             {/* ========================================================================= */}
             {activeTab === "new-product" && (
               <div className="space-y-6">
@@ -916,10 +1065,10 @@ function EmployeePortal({
                 <div className="rounded-3xl border border-amber-200 bg-gradient-to-r from-amber-50 via-white to-amber-50/50 p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <h4 className="text-base font-extrabold text-stone-900 flex items-center gap-2">
-                      <span>✨</span> Direct MySQL Catalog Entry Form
+                      <span>✨</span> MySQL Catalog Operations
                     </h4>
                     <p className="text-xs text-stone-600 mt-1">
-                      Adds rows to <code>product</code>, creates the first SKU in <code>product_variant</code>, and writes initial inventory to <code>inventory</code> table.
+                      Add standalone products to <code>product</code>, attach variants to existing products via <code>sp_add_product_variant</code>, or create both.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -929,6 +1078,7 @@ function EmployeePortal({
                   </div>
                 </div>
 
+<<<<<<< HEAD
                 {/* Success Notification */}
                 {createSuccess && (
                   <div className="rounded-2xl bg-emerald-50 border border-emerald-300 p-4 text-sm font-semibold text-emerald-900 flex items-center justify-between gap-3 animate-fadeIn shadow-xs">
@@ -1267,39 +1417,1162 @@ function EmployeePortal({
 
                   {/* Actions Bar */}
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+=======
+                {/* Sub-Mode Selector Pill Bar */}
+                <div className="rounded-3xl border border-stone-200 bg-white p-3 shadow-xs flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+>>>>>>> 677ec24df5958ddaac8b9382eac3a8918ef17532
                     <button
                       type="button"
                       onClick={() => {
-                        setNewProductForm(initialFormState);
-                        setFormErrors({});
+                        setCatalogMode("product-only");
+                        setProductOnlySuccess("");
+                        setVariantOnlySuccess("");
+                        setCreateSuccess("");
                       }}
-                      className="rounded-2xl border border-stone-300 bg-white px-6 py-3 text-xs font-bold text-stone-600 hover:bg-stone-100 transition cursor-pointer"
+                      className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer ${
+                        catalogMode === "product-only"
+                          ? "bg-amber-600 text-white shadow-xs"
+                          : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+                      }`}
                     >
-                      Reset Form
+                      <span className="text-sm">📦</span>
+                      <span>Add Product Only</span>
                     </button>
-
                     <button
-                      type="submit"
-                      disabled={formLoading}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-amber-600 px-8 py-3.5 text-sm font-extrabold text-white shadow-md hover:bg-amber-500 active:scale-95 transition disabled:opacity-50 cursor-pointer"
+                      type="button"
+                      onClick={() => {
+                        setCatalogMode("variant-only");
+                        setProductOnlySuccess("");
+                        setVariantOnlySuccess("");
+                        setCreateSuccess("");
+                      }}
+                      className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer ${
+                        catalogMode === "variant-only"
+                          ? "bg-amber-600 text-white shadow-xs"
+                          : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+                      }`}
                     >
-                      {formLoading ? (
-                        <>
-                          <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                          </svg>
-                          <span>Writing to Database...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>💾</span>
-                          <span>Save Product & Variant to Database</span>
-                        </>
-                      )}
+                      <span className="text-sm">🎨</span>
+                      <span>Add Product Variant Only</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCatalogMode("both");
+                        setProductOnlySuccess("");
+                        setVariantOnlySuccess("");
+                        setCreateSuccess("");
+                      }}
+                      className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer ${
+                        catalogMode === "both"
+                          ? "bg-amber-600 text-white shadow-xs"
+                          : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+                      }`}
+                    >
+                      <span className="text-sm">✨</span>
+                      <span>Both (Product + Variant)</span>
                     </button>
                   </div>
-                </form>
+                  <div className="text-[11px] font-semibold text-stone-500 pr-2">
+                    {catalogMode === "product-only" && "Creates entry in product table • Web link mandatory"}
+                    {catalogMode === "variant-only" && "Select or type Product ID to attach new variant & stock"}
+                    {catalogMode === "both" && "Full insertion into product, variant & inventory tables"}
+                  </div>
+                </div>
+
+                {/* ------------------------------------------------------------------------- */}
+                {/* SUB-MODE 1: ADD PRODUCT ONLY                                              */}
+                {/* ------------------------------------------------------------------------- */}
+                {catalogMode === "product-only" && (
+                  <div className="space-y-6 animate-fadeIn">
+                    {/* Success Notification */}
+                    {productOnlySuccess && (
+                      <div className="rounded-2xl bg-emerald-50 border border-emerald-300 p-4 text-sm font-semibold text-emerald-900 flex flex-wrap items-center justify-between gap-3 animate-fadeIn shadow-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">🎉</span>
+                          <span>{productOnlySuccess}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {lastCreatedProductId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setVariantOnlyForm((prev) => ({
+                                  ...prev,
+                                  product_id: String(lastCreatedProductId),
+                                }));
+                                setCatalogMode("variant-only");
+                                setProductOnlySuccess("");
+                              }}
+                              className="rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold px-3.5 py-1.5 transition cursor-pointer shadow-xs"
+                            >
+                              ➕ Add Variant for Product #{lastCreatedProductId}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setProductOnlySuccess("")}
+                            className="text-xs text-emerald-700 hover:underline cursor-pointer"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* General Error */}
+                    {productOnlyErrors.submit && (
+                      <div className="rounded-2xl bg-red-50 border border-red-300 p-4 text-sm font-semibold text-red-900 flex items-center gap-2 animate-fadeIn shadow-xs">
+                        <span className="text-xl">⚠️</span>
+                        <span>{productOnlyErrors.submit}</span>
+                      </div>
+                    )}
+
+                    <form onSubmit={handleCreateProductOnlySubmit} className="space-y-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Left 2 Cols: Product Details */}
+                        <div className="lg:col-span-2 rounded-3xl border border-stone-200 bg-white p-6 shadow-xs space-y-4">
+                          <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+                            <h5 className="text-xs font-extrabold uppercase tracking-wider text-stone-800 flex items-center gap-2">
+                              <span>📦</span> Product Master Record (product Table)
+                            </h5>
+                            <span className="text-[11px] text-stone-400 font-medium">* Required fields</span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {/* Product Name */}
+                            <div className="sm:col-span-2">
+                              <label className="block text-xs font-bold text-stone-700 mb-1">
+                                Product Name *
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Vintage Wash Denim Jacket, Silk Kurta, Running Pro Shoes"
+                                value={productOnlyForm.product_name}
+                                onChange={(e) => handleProductOnlyFieldChange("product_name", e.target.value)}
+                                className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                  productOnlyErrors.product_name
+                                    ? "border-red-500 ring-2 ring-red-100"
+                                    : "border-stone-300 focus:border-amber-700"
+                                }`}
+                              />
+                              {productOnlyErrors.product_name && (
+                                <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                  {productOnlyErrors.product_name}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Category Select */}
+                            <div>
+                              <label className="block text-xs font-bold text-stone-700 mb-1">
+                                Category *
+                              </label>
+                              <select
+                                value={productOnlyForm.category_id}
+                                onChange={(e) => handleProductOnlyFieldChange("category_id", e.target.value)}
+                                className={`w-full rounded-xl border bg-white px-3 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                  productOnlyErrors.category_id
+                                    ? "border-red-500 ring-2 ring-red-100"
+                                    : "border-stone-300 focus:border-amber-700"
+                                }`}
+                              >
+                                <option value="">-- Choose Category --</option>
+                                {categories.map((c) => (
+                                  <option key={c.category_id} value={c.category_id}>
+                                    {c.category_type} (ID: #{c.category_id})
+                                  </option>
+                                ))}
+                              </select>
+                              {productOnlyErrors.category_id && (
+                                <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                  {productOnlyErrors.category_id}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Brand Select */}
+                            <div>
+                              <label className="block text-xs font-bold text-stone-700 mb-1">
+                                Brand *
+                              </label>
+                              <select
+                                value={productOnlyForm.brand_id}
+                                onChange={(e) => handleProductOnlyFieldChange("brand_id", e.target.value)}
+                                className={`w-full rounded-xl border bg-white px-3 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                  productOnlyErrors.brand_id
+                                    ? "border-red-500 ring-2 ring-red-100"
+                                    : "border-stone-300 focus:border-amber-700"
+                                }`}
+                              >
+                                <option value="">-- Choose Brand --</option>
+                                {brands.map((b) => (
+                                  <option key={b.brand_id} value={b.brand_id}>
+                                    {b.brand_name} (ID: #{b.brand_id})
+                                  </option>
+                                ))}
+                              </select>
+                              {productOnlyErrors.brand_id && (
+                                <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                  {productOnlyErrors.brand_id}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Mandatory Product Photo URL */}
+                            <div className="sm:col-span-2">
+                              <div className="flex items-center justify-between mb-1">
+                                <label className="block text-xs font-bold text-stone-700">
+                                  Product Photo Web URL * <span className="text-amber-800 text-[10px] font-bold">(Mandatory)</span>
+                                </label>
+                                <span className="text-[10px] text-stone-400">Must start with http:// or https://</span>
+                              </div>
+                              <input
+                                type="url"
+                                placeholder="https://images.unsplash.com/..."
+                                value={productOnlyForm.image_url}
+                                onChange={(e) => handleProductOnlyFieldChange("image_url", e.target.value)}
+                                className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                  productOnlyErrors.image_url
+                                    ? "border-red-500 ring-2 ring-red-100"
+                                    : "border-stone-300 focus:border-amber-700"
+                                }`}
+                              />
+                              {productOnlyErrors.image_url && (
+                                <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                  {productOnlyErrors.image_url}
+                                </p>
+                              )}
+                              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                <span className="text-[10px] font-bold text-stone-500">Quick Demo Links:</span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleProductOnlyFieldChange(
+                                      "image_url",
+                                      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=700&q=80"
+                                    )
+                                  }
+                                  className="rounded-md bg-stone-100 border border-stone-200 px-2 py-0.5 text-[10px] text-stone-700 hover:bg-stone-200 transition cursor-pointer"
+                                >
+                                  👕 White T-Shirt
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleProductOnlyFieldChange(
+                                      "image_url",
+                                      "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=700&q=80"
+                                    )
+                                  }
+                                  className="rounded-md bg-stone-100 border border-stone-200 px-2 py-0.5 text-[10px] text-stone-700 hover:bg-stone-200 transition cursor-pointer"
+                                >
+                                  🧥 Grey Hoodie
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleProductOnlyFieldChange(
+                                      "image_url",
+                                      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=700&q=80"
+                                    )
+                                  }
+                                  className="rounded-md bg-stone-100 border border-stone-200 px-2 py-0.5 text-[10px] text-stone-700 hover:bg-stone-200 transition cursor-pointer"
+                                >
+                                  👟 Red Sneaker
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleProductOnlyFieldChange(
+                                      "image_url",
+                                      "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=700&q=80"
+                                    )
+                                  }
+                                  className="rounded-md bg-stone-100 border border-stone-200 px-2 py-0.5 text-[10px] text-stone-700 hover:bg-stone-200 transition cursor-pointer"
+                                >
+                                  🧢 Sports Cap
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Description */}
+                            <div className="sm:col-span-2">
+                              <div className="flex items-center justify-between mb-1">
+                                <label className="block text-xs font-bold text-stone-700">
+                                  Product Description (Optional)
+                                </label>
+                                <span className="text-[10px] text-stone-400">
+                                  {productOnlyForm.product_description.length}/500 chars
+                                </span>
+                              </div>
+                              <textarea
+                                rows={3}
+                                maxLength={500}
+                                placeholder="Breathable cotton fabric with comfort fit, ideal for casual and daily wear..."
+                                value={productOnlyForm.product_description}
+                                onChange={(e) => handleProductOnlyFieldChange("product_description", e.target.value)}
+                                className={`w-full rounded-xl border bg-white px-3.5 py-2 text-xs text-stone-900 focus:outline-none transition ${
+                                  productOnlyErrors.product_description
+                                    ? "border-red-500 ring-2 ring-red-100"
+                                    : "border-stone-300 focus:border-amber-700"
+                                }`}
+                              />
+                              {productOnlyErrors.product_description && (
+                                <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                  {productOnlyErrors.product_description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right 1 Col: Live Product Preview */}
+                        <div className="rounded-3xl border border-stone-200 bg-white p-6 shadow-xs space-y-4 flex flex-col justify-between">
+                          <div>
+                            <div className="border-b border-stone-200 pb-3 mb-4">
+                              <h5 className="text-xs font-extrabold uppercase tracking-wider text-stone-800 flex items-center gap-2">
+                                <span>👁️</span> Live Product Preview
+                              </h5>
+                              <p className="text-[11px] text-stone-500 mt-0.5">
+                                Preview of product card before inserting variants
+                              </p>
+                            </div>
+
+                            <div className="rounded-2xl border border-stone-200 bg-stone-50 overflow-hidden">
+                              <div className="h-44 bg-stone-200 relative flex items-center justify-center overflow-hidden">
+                                {productOnlyForm.image_url ? (
+                                  <img
+                                    src={productOnlyForm.image_url}
+                                    alt="Preview"
+                                    className="h-full w-full object-cover"
+                                    onError={(e) => {
+                                      e.target.style.display = "none";
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="text-4xl">📦</span>
+                                )}
+                                <span className="absolute top-2 left-2 rounded-md bg-stone-900/80 text-white text-[10px] font-bold px-2 py-0.5 backdrop-blur-xs">
+                                  {categories.find((c) => String(c.category_id) === String(productOnlyForm.category_id))
+                                    ?.category_type || "Category"}
+                                </span>
+                              </div>
+                              <div className="p-4 space-y-2">
+                                <div className="font-extrabold text-sm text-stone-900 truncate">
+                                  {productOnlyForm.product_name || "New Product Title"}
+                                </div>
+                                <div className="text-xs text-stone-500">
+                                  Brand:{" "}
+                                  <span className="font-bold text-stone-800">
+                                    {brands.find((b) => String(b.brand_id) === String(productOnlyForm.brand_id))
+                                      ?.brand_name || "Brand"}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-stone-600 line-clamp-2">
+                                  {productOnlyForm.product_description ||
+                                    "No description provided. You can attach size & color variants in the next step."}
+                                </p>
+                                <div className="rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-[11px] text-amber-900 font-semibold flex items-center gap-2">
+                                  <span>ℹ️</span>
+                                  <span>Created as standalone product. Variants can be added immediately.</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-[11px] text-stone-400 text-center">
+                            MySQL Stored Procedure: <code>sp_insert_product</code>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Actions Bar */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProductOnlyForm(initialProductOnlyState);
+                            setProductOnlyErrors({});
+                          }}
+                          className="rounded-2xl border border-stone-300 bg-white px-6 py-3 text-xs font-bold text-stone-600 hover:bg-stone-100 transition cursor-pointer"
+                        >
+                          Reset Form
+                        </button>
+
+                        <button
+                          type="submit"
+                          disabled={productOnlyLoading}
+                          className="inline-flex items-center gap-2 rounded-2xl bg-amber-600 px-8 py-3.5 text-sm font-extrabold text-white shadow-md hover:bg-amber-500 active:scale-95 transition disabled:opacity-50 cursor-pointer"
+                        >
+                          {productOnlyLoading ? (
+                            <>
+                              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                              </svg>
+                              <span>Inserting Product into MySQL...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>💾</span>
+                              <span>Save Product to Database (sp_insert_product)</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                {/* ------------------------------------------------------------------------- */}
+                {/* SUB-MODE 2: ADD PRODUCT VARIANT ONLY                                      */}
+                {/* ------------------------------------------------------------------------- */}
+                {catalogMode === "variant-only" && (
+                  <div className="space-y-6 animate-fadeIn">
+                    {/* Success Notification */}
+                    {variantOnlySuccess && (
+                      <div className="rounded-2xl bg-emerald-50 border border-emerald-300 p-4 text-sm font-semibold text-emerald-900 flex items-center justify-between gap-3 animate-fadeIn shadow-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">🎉</span>
+                          <span>{variantOnlySuccess}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setVariantOnlySuccess("")}
+                          className="text-xs text-emerald-700 hover:underline cursor-pointer"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    )}
+
+                    {/* General Error */}
+                    {variantOnlyErrors.submit && (
+                      <div className="rounded-2xl bg-red-50 border border-red-300 p-4 text-sm font-semibold text-red-900 flex items-center gap-2 animate-fadeIn shadow-xs">
+                        <span className="text-xl">⚠️</span>
+                        <span>{variantOnlyErrors.submit}</span>
+                      </div>
+                    )}
+
+                    <form onSubmit={handleCreateVariantOnlySubmit} className="space-y-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Left 2 Cols: Product Target Selector & Variant Details */}
+                        <div className="lg:col-span-2 rounded-3xl border border-stone-200 bg-white p-6 shadow-xs space-y-6">
+                          {/* Step 1: Target Product Selection */}
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between border-b border-stone-200 pb-2">
+                              <h5 className="text-xs font-extrabold uppercase tracking-wider text-stone-800 flex items-center gap-2">
+                                <span>1️⃣</span> Select Target Product (By Product ID)
+                              </h5>
+                              <span className="text-[11px] text-stone-400 font-medium">* Required</span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              {/* Direct Product ID Number Input */}
+                              <div className="sm:col-span-1">
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                  Product ID # *
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  placeholder="e.g. 1"
+                                  value={variantOnlyForm.product_id}
+                                  onChange={(e) => handleVariantOnlyFieldChange("product_id", e.target.value)}
+                                  className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                    variantOnlyErrors.product_id
+                                      ? "border-red-500 ring-2 ring-red-100"
+                                      : "border-stone-300 focus:border-amber-700"
+                                  }`}
+                                />
+                              </div>
+
+                              {/* Dropdown Product Selector */}
+                              <div className="sm:col-span-2">
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                  Or Select from Catalog ({products.length} Products)
+                                </label>
+                                <select
+                                  value={variantOnlyForm.product_id}
+                                  onChange={(e) => handleVariantOnlyFieldChange("product_id", e.target.value)}
+                                  className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-xs text-stone-900 focus:outline-none focus:border-amber-700 transition"
+                                >
+                                  <option value="">-- Choose Product from Catalog --</option>
+                                  {products.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                      [ID #{p.id}] {p.name} ({p.brand || "Brand"} • {p.category || "Category"})
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                            {variantOnlyErrors.product_id && (
+                              <p className="text-[11px] font-semibold text-red-600">
+                                {variantOnlyErrors.product_id}
+                              </p>
+                            )}
+
+                            {/* Target Product Confirmation Card */}
+                            {selectedTargetProduct ? (
+                              <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50/60 to-white p-3.5 flex items-center gap-3.5">
+                                <img
+                                  src={selectedTargetProduct.image}
+                                  alt={selectedTargetProduct.name}
+                                  className="h-14 w-14 rounded-xl object-cover border border-amber-300 bg-stone-100 shrink-0"
+                                  onError={(e) => {
+                                    e.target.style.display = "none";
+                                  }}
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-extrabold text-xs text-stone-900 truncate">
+                                      #{selectedTargetProduct.id} — {selectedTargetProduct.name}
+                                    </span>
+                                    <span className="rounded-md bg-white border border-amber-300 text-amber-900 text-[10px] font-bold px-2 py-0.5">
+                                      {selectedTargetProduct.category}
+                                    </span>
+                                    <span className="rounded-md bg-stone-100 border border-stone-300 text-stone-700 text-[10px] font-bold px-2 py-0.5">
+                                      {selectedTargetProduct.brand}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1 text-[11px] text-stone-600">
+                                    Existing SKUs ({selectedTargetProduct.variants?.length || 0}):{" "}
+                                    {selectedTargetProduct.variants && selectedTargetProduct.variants.length > 0 ? (
+                                      <span className="font-mono text-[10px] text-stone-800">
+                                        {selectedTargetProduct.variants
+                                          .map((v) => `${v.color_size} (₹${v.selling_price})`)
+                                          .join(", ")}
+                                      </span>
+                                    ) : (
+                                      <span className="italic text-stone-400">No variants registered yet</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : variantOnlyForm.product_id ? (
+                              <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900 flex items-center gap-2">
+                                <span>⚠️</span>
+                                <span>
+                                  Product ID #{variantOnlyForm.product_id} not found in the current loaded catalog. Please verify the ID.
+                                </span>
+                              </div>
+                            ) : null}
+                          </div>
+
+                          {/* Step 2: Variant Details */}
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between border-b border-stone-200 pb-2">
+                              <h5 className="text-xs font-extrabold uppercase tracking-wider text-stone-800 flex items-center gap-2">
+                                <span>2️⃣</span> New Variant Specifications
+                              </h5>
+                              <span className="text-[11px] text-stone-400 font-medium">product_variant table</span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              {/* Option / Size */}
+                              <div className="sm:col-span-2">
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                  Size / Option (Color-Size) *
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Black-M, Navy-XL, 9-UK, Olive-L, Free-Size"
+                                  value={variantOnlyForm.color_size}
+                                  onChange={(e) => handleVariantOnlyFieldChange("color_size", e.target.value)}
+                                  className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                    variantOnlyErrors.color_size
+                                      ? "border-red-500 ring-2 ring-red-100"
+                                      : "border-stone-300 focus:border-amber-700"
+                                  }`}
+                                />
+                                <div className="mt-1.5 flex flex-wrap gap-1">
+                                  {["Black-M", "Blue-L", "White-XL", "Free-Size", "8-UK", "9-UK", "10-UK"].map((chip) => (
+                                    <button
+                                      key={chip}
+                                      type="button"
+                                      onClick={() => handleVariantOnlyFieldChange("color_size", chip)}
+                                      className="rounded-md bg-stone-100 border border-stone-200 px-2 py-0.5 text-[10px] text-stone-700 hover:bg-stone-200 transition cursor-pointer"
+                                    >
+                                      {chip}
+                                    </button>
+                                  ))}
+                                </div>
+                                {variantOnlyErrors.color_size && (
+                                  <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                    {variantOnlyErrors.color_size}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Selling Price */}
+                              <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                  Variant Selling Price (₹) *
+                                </label>
+                                <div className="relative">
+                                  <span className="absolute left-3.5 top-2.5 text-xs text-stone-400 font-bold">₹</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0.01"
+                                    placeholder="e.g. 1499.00"
+                                    value={variantOnlyForm.selling_price}
+                                    onChange={(e) => handleVariantOnlyFieldChange("selling_price", e.target.value)}
+                                    className={`w-full rounded-xl border bg-white pl-8 pr-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                      variantOnlyErrors.selling_price
+                                        ? "border-red-500 ring-2 ring-red-100"
+                                        : "border-stone-300 focus:border-amber-700"
+                                    }`}
+                                  />
+                                </div>
+                                {variantOnlyErrors.selling_price && (
+                                  <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                    {variantOnlyErrors.selling_price}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Discount Percent */}
+                              <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                  Variant Discount (% OFF)
+                                </label>
+                                <div className="relative">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="90"
+                                    step="1"
+                                    placeholder="0"
+                                    value={variantOnlyForm.discount_percent}
+                                    onChange={(e) => handleVariantOnlyFieldChange("discount_percent", e.target.value)}
+                                    className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition pr-8 ${
+                                      variantOnlyErrors.discount_percent
+                                        ? "border-red-500 ring-2 ring-red-100"
+                                        : "border-stone-300 focus:border-amber-700"
+                                    }`}
+                                  />
+                                  <span className="absolute right-3.5 top-2.5 text-xs text-stone-400 font-bold">%</span>
+                                </div>
+                                <div className="mt-1.5 flex flex-wrap gap-1">
+                                  {["0", "10", "20", "30", "40", "50"].map((d) => (
+                                    <button
+                                      key={d}
+                                      type="button"
+                                      onClick={() => handleVariantOnlyFieldChange("discount_percent", d)}
+                                      className="rounded-md bg-stone-100 border border-stone-200 px-2 py-0.5 text-[10px] text-stone-700 hover:bg-stone-200 transition cursor-pointer"
+                                    >
+                                      {d}%
+                                    </button>
+                                  ))}
+                                </div>
+                                {variantOnlyErrors.discount_percent && (
+                                  <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                    {variantOnlyErrors.discount_percent}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Initial Stock */}
+                              <div className="sm:col-span-2">
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                  Branch Initial Stock Quantity *
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  placeholder="e.g. 25"
+                                  value={variantOnlyForm.initial_stock}
+                                  onChange={(e) => handleVariantOnlyFieldChange("initial_stock", e.target.value)}
+                                  className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                    variantOnlyErrors.initial_stock
+                                      ? "border-red-500 ring-2 ring-red-100"
+                                      : "border-stone-300 focus:border-amber-700"
+                                  }`}
+                                />
+                                {variantOnlyErrors.initial_stock && (
+                                  <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                    {variantOnlyErrors.initial_stock}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right 1 Col: Live Variant Card Preview */}
+                        <div className="rounded-3xl border border-stone-200 bg-white p-6 shadow-xs space-y-4 flex flex-col justify-between">
+                          <div>
+                            <div className="border-b border-stone-200 pb-3 mb-4">
+                              <h5 className="text-xs font-extrabold uppercase tracking-wider text-stone-800 flex items-center gap-2">
+                                <span>👁️</span> Live Variant Card Preview
+                              </h5>
+                              <p className="text-[11px] text-stone-500 mt-0.5">
+                                Real-time customer card representation
+                              </p>
+                            </div>
+
+                            <div className="rounded-2xl border border-stone-200 bg-stone-50 overflow-hidden">
+                              <div className="h-44 bg-stone-200 relative flex items-center justify-center overflow-hidden">
+                                {selectedTargetProduct?.image ? (
+                                  <img
+                                    src={selectedTargetProduct.image}
+                                    alt="Product Preview"
+                                    className="h-full w-full object-cover"
+                                    onError={(e) => {
+                                      e.target.style.display = "none";
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="text-4xl">🎨</span>
+                                )}
+
+                                {/* Discount badge */}
+                                {Number(variantOnlyForm.discount_percent || 0) > 0 && (
+                                  <span className="absolute top-2 left-2 rounded-md bg-emerald-600 text-white text-[10px] font-extrabold px-2 py-0.5 shadow-xs">
+                                    {variantOnlyForm.discount_percent}% OFF
+                                  </span>
+                                )}
+
+                                {/* Stock badge */}
+                                <span className="absolute bottom-2 left-2 rounded-md bg-stone-900/80 text-white text-[10px] font-bold px-2 py-0.5 backdrop-blur-xs">
+                                  In Stock: {variantOnlyForm.initial_stock || "0"}
+                                </span>
+                              </div>
+
+                              <div className="p-4 space-y-2">
+                                <div className="font-extrabold text-sm text-stone-900 truncate">
+                                  {selectedTargetProduct?.name || "Target Product Name"}
+                                </div>
+                                <div className="text-[11px] text-stone-500">
+                                  Option:{" "}
+                                  <span className="rounded bg-amber-100 border border-amber-300 text-amber-900 font-bold px-1.5 py-0.5 text-[10px]">
+                                    {variantOnlyForm.color_size || "Option / Size"}
+                                  </span>
+                                </div>
+
+                                {(() => {
+                                  const base = Number(variantOnlyForm.selling_price) || 0;
+                                  const disc = Number(variantOnlyForm.discount_percent) || 0;
+                                  const finalPrice = disc > 0 ? Math.round(base * (1 - disc / 100)) : base;
+                                  return (
+                                    <div className="flex items-baseline gap-2 pt-1 flex-wrap">
+                                      <span className="text-base font-black text-stone-950">
+                                        ₹{finalPrice.toLocaleString("en-IN")}
+                                      </span>
+                                      {disc > 0 && base > 0 && (
+                                        <>
+                                          <span className="text-xs text-stone-400 line-through font-semibold">
+                                            ₹{base.toLocaleString("en-IN")}
+                                          </span>
+                                          <span className="text-[11px] font-bold text-emerald-700">
+                                            (Saves ₹{(base - finalPrice).toLocaleString("en-IN")})
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-[11px] text-stone-400 text-center">
+                            MySQL Stored Procedure: <code>sp_add_product_variant</code>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Actions Bar */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setVariantOnlyForm(initialVariantOnlyState);
+                            setVariantOnlyErrors({});
+                          }}
+                          className="rounded-2xl border border-stone-300 bg-white px-6 py-3 text-xs font-bold text-stone-600 hover:bg-stone-100 transition cursor-pointer"
+                        >
+                          Reset Form
+                        </button>
+
+                        <button
+                          type="submit"
+                          disabled={variantOnlyLoading || !variantOnlyForm.product_id}
+                          className="inline-flex items-center gap-2 rounded-2xl bg-amber-600 px-8 py-3.5 text-sm font-extrabold text-white shadow-md hover:bg-amber-500 active:scale-95 transition disabled:opacity-50 cursor-pointer"
+                        >
+                          {variantOnlyLoading ? (
+                            <>
+                              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                              </svg>
+                              <span>Attaching Variant to Product in MySQL...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>💾</span>
+                              <span>Save Variant to Product #{variantOnlyForm.product_id || "?"}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                {/* ------------------------------------------------------------------------- */}
+                {/* SUB-MODE 3: BOTH PRODUCT & VARIANT (FULL BUNDLE)                         */}
+                {/* ------------------------------------------------------------------------- */}
+                {catalogMode === "both" && (
+                  <div className="space-y-6 animate-fadeIn">
+                    {/* Success Notification */}
+                    {createSuccess && (
+                      <div className="rounded-2xl bg-emerald-50 border border-emerald-300 p-4 text-sm font-semibold text-emerald-900 flex items-center justify-between gap-3 animate-fadeIn shadow-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">🎉</span>
+                          <span>{createSuccess}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCreateSuccess("")}
+                          className="text-xs text-emerald-700 hover:underline cursor-pointer"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Form General Error */}
+                    {formErrors.submit && (
+                      <div className="rounded-2xl bg-red-50 border border-red-300 p-4 text-sm font-semibold text-red-900 flex items-center gap-2 animate-fadeIn shadow-xs">
+                        <span className="text-xl">⚠️</span>
+                        <span>{formErrors.submit}</span>
+                      </div>
+                    )}
+
+                    <form onSubmit={handleCreateProductSubmit} className="space-y-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Left 2 Cols: Main Product Details */}
+                        <div className="lg:col-span-2 rounded-3xl border border-stone-200 bg-white p-6 shadow-xs space-y-4">
+                          <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+                            <h5 className="text-xs font-extrabold uppercase tracking-wider text-stone-800 flex items-center gap-2">
+                              <span>1️⃣</span> Product Information (Parent Table)
+                            </h5>
+                            <span className="text-[11px] text-stone-400 font-medium">* Required fields</span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {/* Product Name */}
+                            <div className="sm:col-span-2">
+                              <label className="block text-xs font-bold text-stone-700 mb-1">
+                                Product Name *
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Vintage Wash Denim Jacket, Silk Kurta, Running Pro Shoes"
+                                value={newProductForm.product_name}
+                                onChange={(e) => handleFieldChange("product_name", e.target.value)}
+                                className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                  formErrors.product_name
+                                    ? "border-red-500 ring-2 ring-red-100"
+                                    : "border-stone-300 focus:border-amber-700"
+                                }`}
+                              />
+                              {formErrors.product_name && (
+                                <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                  {formErrors.product_name}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Category Select */}
+                            <div>
+                              <label className="block text-xs font-bold text-stone-700 mb-1">
+                                Category *
+                              </label>
+                              <select
+                                value={newProductForm.category_id}
+                                onChange={(e) => handleFieldChange("category_id", e.target.value)}
+                                className={`w-full rounded-xl border bg-white px-3 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                  formErrors.category_id
+                                    ? "border-red-500 ring-2 ring-red-100"
+                                    : "border-stone-300 focus:border-amber-700"
+                                }`}
+                              >
+                                <option value="">-- Choose Category --</option>
+                                {categories.map((c) => (
+                                  <option key={c.category_id} value={c.category_id}>
+                                    {c.category_type} (ID: #{c.category_id})
+                                  </option>
+                                ))}
+                              </select>
+                              {formErrors.category_id && (
+                                <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                  {formErrors.category_id}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Brand Select */}
+                            <div>
+                              <label className="block text-xs font-bold text-stone-700 mb-1">
+                                Brand *
+                              </label>
+                              <select
+                                value={newProductForm.brand_id}
+                                onChange={(e) => handleFieldChange("brand_id", e.target.value)}
+                                className={`w-full rounded-xl border bg-white px-3 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                  formErrors.brand_id
+                                    ? "border-red-500 ring-2 ring-red-100"
+                                    : "border-stone-300 focus:border-amber-700"
+                                }`}
+                              >
+                                <option value="">-- Choose Brand --</option>
+                                {brands.map((b) => (
+                                  <option key={b.brand_id} value={b.brand_id}>
+                                    {b.brand_name} (ID: #{b.brand_id})
+                                  </option>
+                                ))}
+                              </select>
+                              {formErrors.brand_id && (
+                                <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                  {formErrors.brand_id}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Mandatory Product Photo URL */}
+                            <div className="sm:col-span-2">
+                              <label className="block text-xs font-bold text-stone-700 mb-1">
+                                Product Photo Web URL * <span className="text-amber-800 text-[10px] font-bold">(Mandatory)</span>
+                              </label>
+                              <input
+                                type="url"
+                                placeholder="https://images.unsplash.com/..."
+                                value={newProductForm.image_url}
+                                onChange={(e) => handleFieldChange("image_url", e.target.value)}
+                                className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                  formErrors.image_url
+                                    ? "border-red-500 ring-2 ring-red-100"
+                                    : "border-stone-300 focus:border-amber-700"
+                                }`}
+                              />
+                              {formErrors.image_url && (
+                                <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                  {formErrors.image_url}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Description */}
+                            <div className="sm:col-span-2">
+                              <div className="flex items-center justify-between mb-1">
+                                <label className="block text-xs font-bold text-stone-700">
+                                  Product Description (Optional)
+                                </label>
+                                <span className="text-[10px] text-stone-400">
+                                  {newProductForm.product_description.length}/500 chars
+                                </span>
+                              </div>
+                              <textarea
+                                rows={3}
+                                maxLength={500}
+                                placeholder="Breathable cotton fabric with comfort fit, ideal for casual and daily wear..."
+                                value={newProductForm.product_description}
+                                onChange={(e) => handleFieldChange("product_description", e.target.value)}
+                                className={`w-full rounded-xl border bg-white px-3.5 py-2 text-xs text-stone-900 focus:outline-none transition ${
+                                  formErrors.product_description
+                                    ? "border-red-500 ring-2 ring-red-100"
+                                    : "border-stone-300 focus:border-amber-700"
+                                }`}
+                              />
+                              {formErrors.product_description && (
+                                <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                  {formErrors.product_description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right 1 Col: Initial Variant & Stock + Preview */}
+                        <div className="rounded-3xl border border-stone-200 bg-white p-6 shadow-xs space-y-5 flex flex-col justify-between">
+                          <div className="space-y-4">
+                            <div className="border-b border-stone-200 pb-3">
+                              <h5 className="text-xs font-extrabold uppercase tracking-wider text-stone-800 flex items-center gap-2">
+                                <span>2️⃣</span> Initial Variant & Stock
+                              </h5>
+                              <p className="text-[11px] text-stone-500 mt-0.5">
+                                Auto-creates initial SKU entry
+                              </p>
+                            </div>
+
+                            {/* Color Size */}
+                            <div>
+                              <label className="block text-xs font-bold text-stone-700 mb-1">
+                                Size / Option (Color-Size) *
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Black-M, Navy-XL, 9-UK"
+                                value={newProductForm.color_size}
+                                onChange={(e) => handleFieldChange("color_size", e.target.value)}
+                                className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                  formErrors.color_size
+                                    ? "border-red-500 ring-2 ring-red-100"
+                                    : "border-stone-300 focus:border-amber-700"
+                                }`}
+                              />
+                              <div className="mt-1.5 flex flex-wrap gap-1">
+                                {["Black-M", "Blue-L", "White-XL", "Free-Size"].map((chip) => (
+                                  <button
+                                    key={chip}
+                                    type="button"
+                                    onClick={() => handleFieldChange("color_size", chip)}
+                                    className="rounded-md bg-stone-100 border border-stone-200 px-2 py-0.5 text-[10px] text-stone-700 hover:bg-stone-200 transition cursor-pointer"
+                                  >
+                                    {chip}
+                                  </button>
+                                ))}
+                              </div>
+                              {formErrors.color_size && (
+                                <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                  {formErrors.color_size}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Selling Price */}
+                            <div>
+                              <label className="block text-xs font-bold text-stone-700 mb-1">
+                                Variant Selling Price (₹) *
+                              </label>
+                              <div className="relative">
+                                <span className="absolute left-3.5 top-2.5 text-xs text-stone-400 font-bold">₹</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0.01"
+                                  placeholder="e.g. 1499.00"
+                                  value={newProductForm.selling_price}
+                                  onChange={(e) => handleFieldChange("selling_price", e.target.value)}
+                                  className={`w-full rounded-xl border bg-white pl-8 pr-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                    formErrors.selling_price
+                                      ? "border-red-500 ring-2 ring-red-100"
+                                      : "border-stone-300 focus:border-amber-700"
+                                  }`}
+                                />
+                              </div>
+                              {formErrors.selling_price && (
+                                <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                  {formErrors.selling_price}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Initial Stock */}
+                            <div>
+                              <label className="block text-xs font-bold text-stone-700 mb-1">
+                                Branch Initial Stock Quantity *
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                placeholder="e.g. 50"
+                                value={newProductForm.initial_stock}
+                                onChange={(e) => handleFieldChange("initial_stock", e.target.value)}
+                                className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition ${
+                                  formErrors.initial_stock
+                                    ? "border-red-500 ring-2 ring-red-100"
+                                    : "border-stone-300 focus:border-amber-700"
+                                }`}
+                              />
+                              {formErrors.initial_stock && (
+                                <p className="mt-1 text-[11px] font-semibold text-red-600">
+                                  {formErrors.initial_stock}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Mini Live Preview Card */}
+                          <div className="rounded-2xl bg-stone-50 border border-stone-200 p-3.5">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-2">
+                              Live Catalog Preview
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="h-12 w-12 rounded-xl bg-stone-200 overflow-hidden shrink-0 border border-stone-300 flex items-center justify-center text-lg">
+                                {newProductForm.image_url ? (
+                                  <img
+                                    src={newProductForm.image_url}
+                                    alt="Preview"
+                                    className="h-full w-full object-cover"
+                                    onError={(e) => {
+                                      e.target.style.display = "none";
+                                    }}
+                                  />
+                                ) : (
+                                  "👕"
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-bold text-xs text-stone-900 truncate">
+                                  {newProductForm.product_name || "New Product Title"}
+                                </div>
+                                <div className="text-[11px] font-black text-amber-800">
+                                  ₹{newProductForm.selling_price || "0.00"}
+                                </div>
+                                <div className="text-[10px] text-stone-500">
+                                  SKU: {newProductForm.color_size || "Option"} • Stock: {newProductForm.initial_stock || "0"}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Actions Bar */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewProductForm(initialFormState);
+                            setFormErrors({});
+                          }}
+                          className="rounded-2xl border border-stone-300 bg-white px-6 py-3 text-xs font-bold text-stone-600 hover:bg-stone-100 transition cursor-pointer"
+                        >
+                          Reset Form
+                        </button>
+
+                        <button
+                          type="submit"
+                          disabled={formLoading}
+                          className="inline-flex items-center gap-2 rounded-2xl bg-amber-600 px-8 py-3.5 text-sm font-extrabold text-white shadow-md hover:bg-amber-500 active:scale-95 transition disabled:opacity-50 cursor-pointer"
+                        >
+                          {formLoading ? (
+                            <>
+                              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                              </svg>
+                              <span>Writing to Database...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>💾</span>
+                              <span>Save Product & Variant to Database</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1614,13 +2887,6 @@ function EmployeePortal({
               <span>ThreadCraft Retail Management System • Staff Access Verified</span>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsFullscreen(!isFullscreen)}
-                className="rounded-xl border border-stone-300 px-3.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition cursor-pointer"
-              >
-                {isFullscreen ? "Restore View" : "Maximize View"}
-              </button>
               <button
                 type="button"
                 onClick={onClose}

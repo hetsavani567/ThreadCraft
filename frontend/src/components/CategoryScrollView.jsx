@@ -131,8 +131,8 @@ function CategoryScrollView({
       {/* Category Header with Title, Count and Navigation Buttons - Entire header bar is clickable to open Grid View */}
       <div
         onClick={() => onSelectCategory && onSelectCategory(categoryName)}
-        className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 pb-4 cursor-pointer group hover:bg-amber-50/40 -mx-2 sm:-mx-3 px-2 sm:px-3 pt-1 rounded-2xl transition-colors duration-200"
-        title={`Click anywhere in this header to open ${categoryName} section`}
+        className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 pb-4 -mx-2 sm:-mx-3 px-2 sm:px-3 pt-1 rounded-2xl cursor-pointer group hover:bg-amber-50/40 transition-colors duration-200"
+        title={`Click to open all ${categoryName} in Grid View`}
       >
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 border border-amber-200/70 shadow-xs group-hover:scale-105 group-hover:bg-amber-100 transition">
@@ -154,21 +154,8 @@ function CategoryScrollView({
           </div>
         </div>
 
-        {/* Scroll Navigation Arrows & View in Grid */}
+        {/* Scroll Navigation Arrows */}
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          {onSelectCategory && (
-            <button
-              type="button"
-              onClick={() => onSelectCategory(categoryName)}
-              className="mr-1 inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-xs font-bold text-stone-700 shadow-xs group-hover:border-amber-600 group-hover:text-amber-800 group-hover:bg-amber-50 transition cursor-pointer"
-            >
-              <span>View in Grid</span>
-              <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-              </svg>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={() => handleScroll("left")}
@@ -208,12 +195,12 @@ function CategoryScrollView({
         <div
           ref={scrollContainerRef}
           onScroll={checkScrollability}
-          className="flex gap-4 sm:gap-5 overflow-x-auto pb-4 pt-2 px-1 scroll-smooth snap-x snap-mandatory no-scrollbar"
+          className="flex items-stretch gap-4 sm:gap-5 overflow-x-auto pb-4 pt-2 px-1 scroll-smooth snap-x snap-mandatory no-scrollbar"
         >
           {products.map((product) => (
             <div
               key={product.id}
-              className="flex-none w-[220px] sm:w-[240px] snap-start"
+              className="flex-none w-[220px] sm:w-[240px] snap-start flex flex-col self-stretch"
             >
               <ProductCard
                 product={product}
@@ -230,7 +217,7 @@ function CategoryScrollView({
           {onSelectCategory && (
             <div
               onClick={() => onSelectCategory(categoryName)}
-              className="flex-none w-[180px] sm:w-[200px] snap-start flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-300 bg-stone-50/70 p-6 text-center hover:border-amber-600 hover:bg-amber-50/50 transition cursor-pointer group shadow-2xs"
+              className="flex-none w-[180px] sm:w-[200px] snap-start flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-300 bg-stone-50/70 p-6 text-center hover:border-amber-600 hover:bg-amber-50/50 transition cursor-pointer group shadow-2xs self-stretch"
               title={`Click to open all ${categoryName} in Grid View`}
             >
               <div className="h-12 w-12 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 text-lg group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-stone-950 transition">

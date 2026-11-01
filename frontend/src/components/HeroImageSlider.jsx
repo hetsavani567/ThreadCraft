@@ -38,18 +38,22 @@ function HeroImageSlider({ slides = BANNER_SLIDES, autoPlayInterval = 4000, chil
           return (
             <div
               key={slide.id || index}
-              className={`absolute inset-0 h-full w-full transition-opacity duration-1000 ease-in-out ${
-                isActive ? "opacity-100 z-10" : "opacity-0 pointer-events-none z-0"
-              }`}
+              className={`absolute inset-0 h-full w-full transition-opacity duration-1000 ease-in-out ${isActive ? "opacity-100 z-10" : "opacity-0 pointer-events-none z-0"
+                }`}
             >
               <img
                 src={slide.url}
                 alt={slide.title || "Background banner"}
+<<<<<<< HEAD
                 referrerPolicy="no-referrer"
                 crossOrigin="anonymous"
                 className={`h-full w-full object-cover transition-transform duration-7000 ease-out ${
                   isActive ? "scale-105" : "scale-100"
                 }`}
+=======
+                className={`h-full w-full object-cover transition-transform duration-7000 ease-out ${isActive ? "scale-105" : "scale-100"
+                  }`}
+>>>>>>> 677ec24df5958ddaac8b9382eac3a8918ef17532
                 loading={index === 0 ? "eager" : "lazy"}
               />
             </div>
@@ -60,8 +64,8 @@ function HeroImageSlider({ slides = BANNER_SLIDES, autoPlayInterval = 4000, chil
             - Left-to-Right gradient: dark on left for ultra-crisp readable text, transparent towards right to showcase clothing photos
             - Bottom gradient: smooth dark blend into the next section
         */}
-        <div className="absolute inset-0 z-20 bg-gradient-to-r from-stone-950/95 via-stone-950/75 to-stone-950/30" />
-        <div className="absolute inset-0 z-20 bg-gradient-to-t from-stone-950 via-transparent to-stone-950/40" />
+        <div className="absolute inset-0 z-20 bg-gradient-to-r from-stone-950/75 via-stone-950/25 to-stone-950/30" />
+        <div className="absolute inset-0 z-20 bg-gradient-to-t from-stone-950/75 via-transparent to-stone-950/40" />
       </div>
 
       {/* Foreground Content: Left-side Hero text */}

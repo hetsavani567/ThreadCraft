@@ -6,13 +6,22 @@ function Navbar({
   onOpenEmployeePortal,
   onNavigateToOrders,
   onNavigateToStore,
+  searchQuery = "",
+  onSearchChange,
 }) {
-  const isEmployee = currentUser?.role === "employee";
+  const isEmployee = Boolean(
+    currentUser &&
+      (currentUser.role === "employee" ||
+        currentUser.userType === "employee" ||
+        Boolean(currentUser.emp_id) ||
+        (currentUser.email && currentUser.email.toLowerCase().endsWith("@thread.com")))
+  );
   const isLoggedInCustomer = Boolean(currentUser && !isEmployee);
 
   function handleHomeClick(e) {
     if (!isEmployee) {
       e.preventDefault();
+      if (onSearchChange) onSearchChange("");
       if (onNavigateToStore) {
         onNavigateToStore();
       } else {
@@ -56,17 +65,17 @@ function Navbar({
 
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/95 backdrop-blur-md">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3.5">
-        <div className="flex items-center gap-8">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3 gap-3 md:gap-5">
+        <div className="flex items-center gap-5 lg:gap-8 shrink-0">
           <a
             href={isEmployee ? "#products" : "/"}
             onClick={handleHomeClick}
-            className="text-2xl font-black tracking-tight text-stone-900 cursor-pointer"
+            className="text-xl sm:text-2xl font-black tracking-tight text-stone-900 cursor-pointer shrink-0"
           >
             THREAD<span className="text-amber-600"> & CO.</span>
           </a>
 
-          <div className="hidden items-center gap-6 text-sm font-medium text-stone-600 md:flex">
+          <div className="hidden items-center gap-5 text-sm font-medium text-stone-600 md:flex">
             {!isEmployee ? (
               <>
                 <a
@@ -119,45 +128,85 @@ function Navbar({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          {/* Quick Orders Button - only visible for logged in customers */}
-          {isLoggedInCustomer && (
-            <button
-              type="button"
-              onClick={onNavigateToOrders}
-              title="Track Orders"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:border-stone-400 hover:bg-stone-100 transition cursor-pointer"
-            >
-              <svg className="h-3.5 w-3.5 text-stone-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25V4.5A2.25 2.25 0 0012 2.25H4.5A2.25 2.25 0 002.25 4.5v9.75m9.75-9.75H4.5" />
+        {/* Middle Search Bar */}
+        <div className="flex-1 max-w-md mx-1 sm:mx-3">
+          <div className="relative w-full">
+            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-stone-500">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
               </svg>
-              <span>Orders</span>
-            </button>
-          )}
+            </span>
+            <input
+              id="navbar-product-search"
+              type="text"
+              autoComplete="off"
+              value={searchQuery || ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (onSearchChange) onSearchChange(val);
+                if (val.trim()) {
+                  const el = document.getElementById("products");
+                  if (el) {
+                    const rect = el.getBoundingClientRect();
+                    if (rect.top > 350) {
+                      const header = document.querySelector("header");
+                      const navbarHeight = header ? header.offsetHeight : 61;
+                      const y = rect.top + window.pageYOffset - navbarHeight + 1;
+                      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+                    }
+                  }
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const el = document.getElementById("products");
+                  if (el) {
+                    const header = document.querySelector("header");
+                    const navbarHeight = header ? header.offsetHeight : 61;
+                    const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+                    window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+                  }
+                }
+              }}
+              placeholder="Search by name, brand, category..."
+              className="w-full rounded-xl border-2 border-stone-400 bg-white py-2 pl-9 pr-8 text-xs sm:text-sm text-stone-900 placeholder:text-stone-500 outline-none transition hover:border-stone-500 focus:border-amber-700 focus:ring-2 focus:ring-amber-200/70 shadow-xs [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden [&::-ms-clear]:hidden"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onSearchChange) onSearchChange("");
+                }}
+                className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-stone-500 hover:text-stone-800 cursor-pointer"
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-stone-200 text-[10px] font-bold text-stone-600 hover:bg-stone-300 transition">
+                  ✕
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
 
-          {/* User Profile Pill or Sign In Button */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          {/* User Profile Avatar or Sign In Button */}
           {currentUser ? (
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={isEmployee ? onOpenEmployeePortal : onNavigateToAuth}
-                className="flex items-center gap-2 rounded-full border border-stone-300 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-stone-800 hover:bg-stone-100 transition cursor-pointer"
-                title={isEmployee ? "Open Staff Portal" : "View user profile"}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-300 bg-stone-50 hover:bg-stone-100 hover:border-stone-400 transition cursor-pointer shadow-2xs"
+                title={isEmployee ? "Open Staff Portal" : (currentUser.name ? `${currentUser.name} - Profile` : "View profile")}
+                aria-label={isEmployee ? "Open Staff Portal" : "View profile"}
               >
                 <span
-                  className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white ${isEmployee ? "bg-amber-600" : "bg-stone-900"
-                    }`}
+                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white ${
+                    isEmployee ? "bg-amber-600" : "bg-stone-900"
+                  }`}
                 >
                   {isEmployee ? "👔" : currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
                 </span>
-                <span className="max-w-[110px] truncate sm:max-w-[140px]">
-                  {currentUser.name}
-                </span>
-                {isEmployee && (
-                  <span className="rounded bg-amber-200 px-1.5 py-0.2 text-[9px] font-extrabold uppercase text-amber-900">
-                    Staff
-                  </span>
-                )}
               </button>
 
               <button

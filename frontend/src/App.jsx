@@ -13,6 +13,15 @@ function App() {
   const [productHistory, setProductHistory] = useState([]);
   const [initialCategoryFilter, setInitialCategoryFilter] = useState(null);
   const [initialBrandFilter, setInitialBrandFilter] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  function handleSearchChange(newQuery) {
+    setSearchQuery(newQuery);
+    if (newQuery && newQuery.trim() !== "" && currentView !== "store") {
+      setCurrentView("store");
+      window.location.hash = "#products";
+    }
+  }
 
   // Cart State persistent in localStorage
   const [cart, setCart] = useState(() => {
@@ -71,13 +80,13 @@ function App() {
 
       if (hashLower === "#login" || hashLower === "#signup" || hashLower === "#auth") {
         setCurrentView("auth");
-      } else if (hashLower === "#orders" || hashLower === "#tracking" || hashLower.startsWith("#orders")) {
+      } else if (hashLower.startsWith("#orders") || hashLower.startsWith("#tracking")) {
         const idMatch = fullHash.match(/[?&]id=([^&]+)/i);
         if (idMatch && idMatch[1]) {
           setSelectedOrderId(idMatch[1]);
         }
         setCurrentView("orders");
-      } else if (hashLower.startsWith("#product")) {
+      } else if (hashLower.startsWith("#product?") || hashLower.startsWith("#product/")) {
         const idMatch = fullHash.match(/[?&]id=([^&]+)/i);
         if (idMatch && idMatch[1]) {
           const pid = idMatch[1];
@@ -86,15 +95,31 @@ function App() {
             if (prev[prev.length - 1] === pid) return prev;
             return [...prev, pid];
           });
+          setCurrentView("product");
+        } else {
+          setCurrentView("store");
         }
-        setCurrentView("product");
+      } else if (hashLower === "#product") {
+        setCurrentView("store");
+      } else if (hashLower === "#products" || hashLower.startsWith("#products")) {
+        setCurrentView("store");
       } else if (hashLower.startsWith("#category=")) {
         const catValue = decodeURIComponent(fullHash.slice("#category=".length).split("&")[0]);
         setInitialCategoryFilter(catValue);
+        setInitialBrandFilter(null);
+        setCurrentView("store");
+      } else if (
+        hashLower === "#terminal" ||
+        hashLower === "#portal" ||
+        hashLower === "#staff" ||
+        hashLower === "#employee" ||
+        hashLower === "#staff-terminal"
+      ) {
         setCurrentView("store");
       } else if (hashLower.startsWith("#brand=")) {
         const brandValue = decodeURIComponent(fullHash.slice("#brand=".length).split("&")[0]);
         setInitialBrandFilter(brandValue);
+        setInitialCategoryFilter(null);
         setCurrentView("store");
       } else {
         // default store view
@@ -130,9 +155,146 @@ function App() {
     }
   }
 
-  function navigateToAuth() {
+  function navigateToAuth(options = {}) {
+    const isEvent = options && (options.nativeEvent || options._reactName || options.target);
+    const opts = (!isEvent && options && typeof options === "object") ? options : {};
+
+    const currentHash = window.location.hash || "";
+    let returnHash = opts.returnHash;
+    let returnProductId = opts.returnProductId || null;
+
+    if (!returnHash) {
+      if (currentView === "product" && selectedProductId) {
+        returnHash = `#product?id=${selectedProductId}`;
+        returnProductId = selectedProductId;
+      } else if (
+        currentHash &&
+        !currentHash.toLowerCase().startsWith("#auth") &&
+        !currentHash.toLowerCase().startsWith("#login") &&
+        !currentHash.toLowerCase().startsWith("#signup")
+      ) {
+        returnHash = currentHash;
+      } else {
+        returnHash = "#home";
+      }
+    }
+
+    if (!returnProductId && currentView === "product" && selectedProductId) {
+      returnProductId = selectedProductId;
+    }
+
+    const redirectData = {
+      returnHash,
+      returnProductId,
+      pendingItem: opts.pendingItem || null,
+      quantity: opts.quantity || 1,
+      isBuyNow: Boolean(opts.isBuyNow),
+    };
+
+    try {
+      sessionStorage.setItem("threadcraft_auth_redirect", JSON.stringify(redirectData));
+    } catch (e) {
+      console.warn("Could not save auth redirect data:", e);
+    }
+
     setCurrentView("auth");
     window.location.hash = "#auth";
+  }
+
+  function handleNavigateAfterLogin(user) {
+    let redirectData = null;
+    try {
+      const raw = sessionStorage.getItem("threadcraft_auth_redirect");
+      if (raw) {
+        redirectData = JSON.parse(raw);
+        sessionStorage.removeItem("threadcraft_auth_redirect");
+      }
+    } catch (e) {
+      console.warn("Could not read auth redirect data:", e);
+    }
+
+    if (redirectData) {
+      const { returnHash, returnProductId, pendingItem, quantity, isBuyNow } = redirectData;
+
+      // 1. If there was a pending item from Add to Cart or Buy Now, add it to cart
+      if (pendingItem && user?.role !== "employee") {
+        executeAddToCart(pendingItem, quantity || 1);
+      }
+
+      // 2. If it was a "Buy Now" flow, proceed directly to Payment / Checkout
+      if (isBuyNow && user?.role !== "employee") {
+        setCurrentView("store");
+        window.location.hash = "#payment";
+        return;
+      }
+
+      // 3. If customer was viewing a product page, restore that exact product detail page!
+      if (returnProductId) {
+        setSelectedProductId(returnProductId);
+        setProductHistory((prev) => {
+          if (prev[prev.length - 1] === returnProductId) return prev;
+          return [...prev, returnProductId];
+        });
+        window.history.pushState(null, "", `#product?id=${returnProductId}`);
+        setCurrentView("product");
+        return;
+      }
+
+      // 4. If there was another valid page hash (e.g. #orders, #category=Footwear, etc.)
+      if (
+        returnHash &&
+        !returnHash.toLowerCase().startsWith("#auth") &&
+        !returnHash.toLowerCase().startsWith("#login") &&
+        !returnHash.toLowerCase().startsWith("#signup")
+      ) {
+        if (returnHash.startsWith("#product?") || returnHash.startsWith("#product/")) {
+          const idMatch = returnHash.match(/[?&]id=([^&]+)/i);
+          if (idMatch && idMatch[1]) {
+            const pid = idMatch[1];
+            setSelectedProductId(pid);
+            setProductHistory((prev) => {
+              if (prev[prev.length - 1] === pid) return prev;
+              return [...prev, pid];
+            });
+            window.history.pushState(null, "", `#product?id=${pid}`);
+            setCurrentView("product");
+            return;
+          }
+        }
+        window.location.hash = returnHash;
+        return;
+      }
+    }
+
+    // Default fallback
+    navigateToStore();
+  }
+
+  function handleCancelAuth() {
+    let redirectData = null;
+    try {
+      const raw = sessionStorage.getItem("threadcraft_auth_redirect");
+      if (raw) {
+        redirectData = JSON.parse(raw);
+        sessionStorage.removeItem("threadcraft_auth_redirect");
+      }
+    } catch (e) {
+      console.warn("Could not read auth redirect data:", e);
+    }
+
+    if (redirectData?.returnProductId) {
+      setSelectedProductId(redirectData.returnProductId);
+      window.history.pushState(null, "", `#product?id=${redirectData.returnProductId}`);
+      setCurrentView("product");
+      return;
+    }
+
+    if (redirectData?.returnHash && !redirectData.returnHash.startsWith("#auth")) {
+      window.location.hash = redirectData.returnHash;
+      return;
+    }
+
+    navigateToStore();
   }
 
   function navigateToStore() {
@@ -194,13 +356,9 @@ function App() {
     window.location.hash = `#brand=${encodeURIComponent(brandName)}`;
   }
 
-  // Central Add to Cart handler with Bucket Animation
-  function handleAddToCart(product, quantityToAdd = 1) {
-    if (!currentUser) {
-      navigateToAuth();
-      return;
-    }
-
+  // Internal helper to add an item to cart and trigger bucket animation
+  function executeAddToCart(product, quantityToAdd = 1) {
+    if (!product) return;
     const variantId = product.selectedVariant?.variant_id || "default";
     const cartKey = `${product.id}-${variantId}`;
 
@@ -231,6 +389,22 @@ function App() {
       quantity: quantityToAdd,
       timestamp: Date.now(),
     });
+  }
+
+  // Central Add to Cart handler with Bucket Animation
+  function handleAddToCart(product, quantityToAdd = 1) {
+    if (!currentUser) {
+      navigateToAuth({
+        returnHash: window.location.hash || (selectedProductId ? `#product?id=${selectedProductId}` : "#home"),
+        returnProductId: selectedProductId || product?.id || null,
+        pendingItem: product,
+        quantity: quantityToAdd,
+        isBuyNow: false,
+      });
+      return;
+    }
+
+    executeAddToCart(product, quantityToAdd);
   }
 
   function changeQuantity(cartKey, amount) {
@@ -265,6 +439,8 @@ function App() {
           onLoginSuccess={handleLoginSuccess}
           onLogout={handleLogout}
           onNavigateToStore={navigateToStore}
+          onNavigateAfterLogin={handleNavigateAfterLogin}
+          onCancelAuth={handleCancelAuth}
         />
       )}
 
@@ -293,6 +469,8 @@ function App() {
           onNavigateToAuth={navigateToAuth}
           onNavigateToOrders={navigateToOrders}
           onLogout={handleLogout}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
         />
       )}
 
@@ -314,6 +492,8 @@ function App() {
           onAddToCart={handleAddToCart}
           onChangeQuantity={changeQuantity}
           onRemoveFromCart={removeFromCart}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
         />
       )}
 

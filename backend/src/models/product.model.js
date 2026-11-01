@@ -5,7 +5,32 @@ export const getAllProducts = async ({ category, brand, search } = {}) => {
         SELECT 
             p.product_id AS id,
             p.product_name AS name,
-            CAST(p.base_price AS DOUBLE) AS price,
+            COALESCE((
+                SELECT CAST(pv_min.selling_price AS DOUBLE)
+                FROM product_variant pv_min
+                WHERE pv_min.product_id = p.product_id AND pv_min.is_active = 1
+                ORDER BY pv_min.variant_id ASC
+                LIMIT 1
+            ), (
+                SELECT CAST(pv_any.selling_price AS DOUBLE)
+                FROM product_variant pv_any
+                WHERE pv_any.product_id = p.product_id
+                ORDER BY pv_any.variant_id ASC
+                LIMIT 1
+            ), 0.0) AS price,
+            COALESCE((
+                SELECT pv_min.discount_percent
+                FROM product_variant pv_min
+                WHERE pv_min.product_id = p.product_id AND pv_min.is_active = 1
+                ORDER BY pv_min.variant_id ASC
+                LIMIT 1
+            ), (
+                SELECT pv_any.discount_percent
+                FROM product_variant pv_any
+                WHERE pv_any.product_id = p.product_id
+                ORDER BY pv_any.variant_id ASC
+                LIMIT 1
+            ), 0) AS discount_percent,
             p.product_description AS description,
             p.Image_URL AS image,
             p.category_id,
@@ -20,17 +45,24 @@ export const getAllProducts = async ({ category, brand, search } = {}) => {
                 JOIN product_variant pv2 ON inv.variant_id = pv2.variant_id
                 WHERE pv2.product_id = p.product_id
             ), 0) AS total_stock,
+            COALESCE((
+                SELECT 1
+                FROM product_variant pv_act
+                WHERE pv_act.product_id = p.product_id AND pv_act.is_active = 1
+                LIMIT 1
+            ), 0) AS has_active_variant,
             (
                 SELECT JSON_ARRAYAGG(
                     JSON_OBJECT(
                         'variant_id', pv.variant_id,
                         'color_size', pv.color_size,
                         'selling_price', CAST(pv.selling_price AS DOUBLE),
-                        'is_active', pv.is_active
+                        'is_active', pv.is_active,
+                        'discount_percent', COALESCE(pv.discount_percent, 0)
                     )
                 )
                 FROM product_variant pv
-                WHERE pv.product_id = p.product_id AND pv.is_active = 1
+                WHERE pv.product_id = p.product_id
             ) AS variants
         FROM product p
         LEFT JOIN category c ON p.category_id = c.category_id
@@ -68,7 +100,32 @@ export const getProductById = async (id) => {
         SELECT 
             p.product_id AS id,
             p.product_name AS name,
-            CAST(p.base_price AS DOUBLE) AS price,
+            COALESCE((
+                SELECT CAST(pv_min.selling_price AS DOUBLE)
+                FROM product_variant pv_min
+                WHERE pv_min.product_id = p.product_id AND pv_min.is_active = 1
+                ORDER BY pv_min.variant_id ASC
+                LIMIT 1
+            ), (
+                SELECT CAST(pv_any.selling_price AS DOUBLE)
+                FROM product_variant pv_any
+                WHERE pv_any.product_id = p.product_id
+                ORDER BY pv_any.variant_id ASC
+                LIMIT 1
+            ), 0.0) AS price,
+            COALESCE((
+                SELECT pv_min.discount_percent
+                FROM product_variant pv_min
+                WHERE pv_min.product_id = p.product_id AND pv_min.is_active = 1
+                ORDER BY pv_min.variant_id ASC
+                LIMIT 1
+            ), (
+                SELECT pv_any.discount_percent
+                FROM product_variant pv_any
+                WHERE pv_any.product_id = p.product_id
+                ORDER BY pv_any.variant_id ASC
+                LIMIT 1
+            ), 0) AS discount_percent,
             p.product_description AS description,
             p.Image_URL AS image,
             p.category_id,
@@ -83,17 +140,24 @@ export const getProductById = async (id) => {
                 JOIN product_variant pv2 ON inv.variant_id = pv2.variant_id
                 WHERE pv2.product_id = p.product_id
             ), 0) AS total_stock,
+            COALESCE((
+                SELECT 1
+                FROM product_variant pv_act
+                WHERE pv_act.product_id = p.product_id AND pv_act.is_active = 1
+                LIMIT 1
+            ), 0) AS has_active_variant,
             (
                 SELECT JSON_ARRAYAGG(
                     JSON_OBJECT(
                         'variant_id', pv.variant_id,
                         'color_size', pv.color_size,
                         'selling_price', CAST(pv.selling_price AS DOUBLE),
-                        'is_active', pv.is_active
+                        'is_active', pv.is_active,
+                        'discount_percent', COALESCE(pv.discount_percent, 0)
                     )
                 )
                 FROM product_variant pv
-                WHERE pv.product_id = p.product_id AND pv.is_active = 1
+                WHERE pv.product_id = p.product_id
             ) AS variants,
             (
                 SELECT JSON_ARRAYAGG(
@@ -126,7 +190,6 @@ export const createProductWithVariant = async ({
     category_id,
     brand_id,
     product_name,
-    base_price,
     product_description,
     image_url,
     color_size,
@@ -140,12 +203,11 @@ export const createProductWithVariant = async ({
 
         // 1. Execute stored procedure for product insertion
         const [prodResult] = await connection.query(
-            "CALL sp_insert_product(?, ?, ?, ?, ?, ?, @new_product_id)",
+            "CALL sp_insert_product(?, ?, ?, ?, ?, @new_product_id)",
             [
                 category_id,
                 brand_id,
                 product_name.trim(),
-                base_price,
                 product_description?.trim() || null,
                 image_url?.trim() || null
             ]
@@ -159,12 +221,13 @@ export const createProductWithVariant = async ({
 
         // 2. Execute stored procedure for variant & initial inventory insertion
         const [variantResult] = await connection.query(
-            "CALL sp_add_product_variant(?, ?, ?, ?, @new_variant_id)",
+            "CALL sp_add_product_variant(?, ?, ?, ?, ?, @new_variant_id)",
             [
                 productId,
                 color_size.trim(),
-                selling_price || base_price,
-                Number(initial_stock) || 0
+                Number(selling_price) || 0,
+                Number(initial_stock) || 0,
+                Math.max(0, Math.min(99, Math.round(Number(discount_percent) || 0)))
             ]
         );
 
@@ -193,27 +256,95 @@ export const createProductWithVariant = async ({
     }
 };
 
-export const updateProductVariant = async (variantId, { color_size, selling_price, is_active = 1 }) => {
+export const createProductOnly = async ({
+    category_id,
+    brand_id,
+    product_name,
+    product_description,
+    image_url
+}) => {
+    const [result] = await pool.query(
+        "CALL sp_insert_product(?, ?, ?, ?, ?, @new_product_id)",
+        [
+            Number(category_id),
+            Number(brand_id),
+            product_name.trim(),
+            product_description?.trim() || null,
+            image_url.trim()
+        ]
+    );
+
+    const productId = result[0]?.[0]?.inserted_id || result[0]?.[0]?.inserted_product_id;
+    if (!productId) {
+        throw new Error("Failed to retrieve generated product ID from sp_insert_product.");
+    }
+    return { productId };
+};
+
+export const addVariantToProduct = async (productId, {
+    color_size,
+    selling_price,
+    initial_stock = 0,
+    discount_percent = 0,
+    branch_id = 1
+}) => {
+    const cleanProductId = Number(productId);
+    const [result] = await pool.query(
+        "CALL sp_add_product_variant(?, ?, ?, ?, ?, @new_variant_id)",
+        [
+            cleanProductId,
+            color_size.trim(),
+            Number(selling_price),
+            Number(initial_stock) || 0,
+            Math.max(0, Math.min(99, Math.round(Number(discount_percent) || 0)))
+        ]
+    );
+
+    const variantId = result[0]?.[0]?.variant_id || result[0]?.[0]?.new_variant_id;
+    if (!variantId) {
+        throw new Error("Failed to retrieve generated variant ID from sp_add_product_variant.");
+    }
+
+    if (branch_id && Number(branch_id) !== 1 && Number(initial_stock) > 0) {
+        await pool.query(
+            `INSERT INTO inventory (branch_id, variant_id, quantity, reorder_level)
+             VALUES (?, ?, ?, 10)
+             ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)`,
+            [Number(branch_id), variantId, Number(initial_stock)]
+        );
+    }
+
+    return {
+        variant_id: variantId,
+        product_id: cleanProductId,
+        color_size: color_size.trim(),
+        selling_price: Number(selling_price),
+        discount_percent: Math.max(0, Math.min(99, Math.round(Number(discount_percent) || 0))),
+        stock: Number(initial_stock) || 0
+    };
+};
+
+export const updateProductVariant = async (variantId, { color_size, selling_price, is_active = 1, discount_percent = 0 }) => {
     const [rows] = await pool.query(
-        "CALL sp_update_product_variant(?, ?, ?, ?)",
+        "CALL sp_update_product_variant(?, ?, ?, ?, ?)",
         [
             Number(variantId),
             color_size.trim(),
             Number(selling_price),
-            is_active ? 1 : 0
+            is_active ? 1 : 0,
+            Math.max(0, Math.min(99, Math.round(Number(discount_percent) || 0)))
         ]
     );
 
     return rows[0]?.[0] || { updated_variant_id: Number(variantId), status: "Success" };
 };
 
-export const updateProduct = async (productId, { product_name, base_price, product_description, image_url }) => {
+export const updateProduct = async (productId, { product_name, product_description, image_url }) => {
     const [rows] = await pool.query(
-        "CALL sp_update_product(?, ?, ?, ?, ?)",
+        "CALL sp_update_product(?, ?, ?, ?)",
         [
             Number(productId),
             product_name.trim(),
-            Number(base_price),
             product_description !== undefined && product_description !== null ? String(product_description).trim() : null,
             image_url !== undefined && image_url !== null ? String(image_url).trim() : null
         ]
@@ -267,6 +398,96 @@ export const deleteReview = async (reviewId) => {
         const [delResult] = await pool.query("DELETE FROM review WHERE review_id = ?", [cleanReviewId]);
         return { deleted_review_id: cleanReviewId, affectedRows: delResult.affectedRows, status: "Review deleted successfully" };
     }
+};
+
+export const updateProductStock = async (productId, { delta, quantity, branch_id = 1, variant_id }) => {
+    const cleanProductId = Number(productId);
+    const cleanBranchId = Number(branch_id) || 1;
+
+    // 1. Determine target variant
+    let targetVariantId = variant_id ? Number(variant_id) : null;
+    if (!targetVariantId) {
+        const [variants] = await pool.query(
+            "SELECT variant_id FROM product_variant WHERE product_id = ? AND is_active = 1 ORDER BY variant_id ASC LIMIT 1",
+            [cleanProductId]
+        );
+        if (variants.length > 0) {
+            targetVariantId = variants[0].variant_id;
+        } else {
+            const [anyVariants] = await pool.query(
+                "SELECT variant_id FROM product_variant WHERE product_id = ? ORDER BY variant_id ASC LIMIT 1",
+                [cleanProductId]
+            );
+            if (anyVariants.length > 0) {
+                targetVariantId = anyVariants[0].variant_id;
+            } else {
+                const [newVar] = await pool.query(
+                    "INSERT INTO product_variant (product_id, color_size, selling_price, is_active) VALUES (?, 'Standard', 799.00, 1)",
+                    [cleanProductId]
+                );
+                targetVariantId = newVar.insertId;
+            }
+        }
+    }
+
+    // 2. Check existing inventory record for this variant and branch
+    const [invRows] = await pool.query(
+        "SELECT inventory_id, quantity, reorder_level FROM inventory WHERE variant_id = ? AND branch_id = ? LIMIT 1",
+        [targetVariantId, cleanBranchId]
+    );
+
+    let newQty = 0;
+    if (invRows.length > 0) {
+        const currentQty = Number(invRows[0].quantity) || 0;
+        if (quantity !== undefined && quantity !== null) {
+            newQty = Math.max(0, Number(quantity));
+        } else {
+            newQty = Math.max(0, currentQty + (Number(delta) || 0));
+        }
+
+        try {
+            await pool.query(
+                "CALL sp_update_inventory_stock(?, ?, ?)",
+                [invRows[0].inventory_id, newQty, invRows[0].reorder_level || 10]
+            );
+        } catch (spErr) {
+            console.warn("Notice: sp_update_inventory_stock fallback:", spErr.message);
+            await pool.query(
+                "UPDATE inventory SET quantity = ?, last_updated = CURRENT_TIMESTAMP WHERE inventory_id = ?",
+                [newQty, invRows[0].inventory_id]
+            );
+        }
+    } else {
+        if (quantity !== undefined && quantity !== null) {
+            newQty = Math.max(0, Number(quantity));
+        } else {
+            newQty = Math.max(0, Number(delta) || 0);
+        }
+
+        await pool.query(
+            "INSERT INTO inventory (variant_id, branch_id, quantity, reorder_level) VALUES (?, ?, ?, 10)",
+            [targetVariantId, cleanBranchId, newQty]
+        );
+    }
+
+    // 3. Query the updated total stock across all variants for this product
+    const [stockRows] = await pool.query(
+        `SELECT COALESCE(SUM(inv.quantity), 0) AS total_stock
+         FROM inventory inv
+         JOIN product_variant pv ON inv.variant_id = pv.variant_id
+         WHERE pv.product_id = ?`,
+        [cleanProductId]
+    );
+
+    const updatedTotalStock = Number(stockRows[0]?.total_stock) || 0;
+
+    return {
+        product_id: cleanProductId,
+        variant_id: targetVariantId,
+        branch_id: cleanBranchId,
+        total_stock: updatedTotalStock,
+        new_quantity: newQty
+    };
 };
 
 

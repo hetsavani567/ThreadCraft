@@ -624,43 +624,34 @@ CREATE PROCEDURE sp_insert_product(
     IN p_category_id INT,
     IN p_brand_id INT,
     IN p_product_name VARCHAR(150),
-    IN p_base_price DECIMAL(10,2),
     IN p_product_description VARCHAR(500),
     IN p_image_url TEXT,
     OUT p_new_product_id INT
 )
 BEGIN
-    -- 1. Validate Base Price
-    IF p_base_price <= 0 THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Validation Error: Base price must be greater than zero.';
-    END IF;
-
-    -- 2. Validate Category exists
+    -- 1. Validate Category exists
     IF (SELECT COUNT(*) FROM category WHERE category_id = p_category_id) = 0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Validation Error: Invalid category_id. Category does not exist.';
     END IF;
 
-    -- 3. Validate Brand exists
+    -- 2. Validate Brand exists
     IF (SELECT COUNT(*) FROM brand WHERE brand_id = p_brand_id) = 0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Validation Error: Invalid brand_id. Brand does not exist.';
     END IF;
 
-    -- 4. Perform Insertion
+    -- 3. Perform Insertion
     INSERT INTO product (
         category_id,
         brand_id,
         product_name,
-        base_price,
         product_description,
         Image_URL
     ) VALUES (
         p_category_id,
         p_brand_id,
         p_product_name,
-        p_base_price,
         p_product_description,
         p_image_url
     );
@@ -688,6 +679,7 @@ CREATE PROCEDURE sp_add_product_variant(
     IN p_color_size VARCHAR(50),
     IN p_selling_price DECIMAL(10,2),
     IN p_initial_stock INT,
+    IN p_discount_percent INT,
     OUT p_new_variant_id INT
 )
 BEGIN
@@ -720,12 +712,14 @@ BEGIN
         product_id,
         color_size,
         selling_price,
-        is_active
+        is_active,
+        discount_percent
     ) VALUES (
         p_product_id,
-        p_color_size,
+        TRIM(p_color_size),
         p_selling_price,
-        1
+        1,
+        COALESCE(p_discount_percent, 0)
     );
 
     SET p_new_variant_id = LAST_INSERT_ID();

@@ -809,10 +809,20 @@ export const getMe = async (req, res) => {
         let user;
         if (userType === "employee") {
             user = await authModel.findEmployeeById(userId);
-            if (user) user.role = "employee";
+            if (user) {
+                user.role = "employee";
+                user.userType = "employee";
+                user.name = user.emp_name || user.name || "Employee";
+                user.email = user.emp_email || user.email;
+                user.id = user.emp_id || user.id;
+            }
         } else {
             user = await authModel.findCustomerById(userId);
-            if (user) user.role = "customer";
+            if (user) {
+                user.role = "customer";
+                user.userType = "customer";
+                user.id = user.cust_id || user.id;
+            }
         }
 
         if (!user) {

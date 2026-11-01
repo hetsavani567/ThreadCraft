@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { updateProductVariant, updateProduct } from "../services/api";
 
+function isVarActive(v) {
+  if (!v) return true;
+  if (v.is_active === 0 || v.is_active === false || v.is_active === "0" || v.is_active === "false") {
+    return false;
+  }
+  return true;
+}
+
 function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantUpdated }) {
   if (!isOpen || !product) return null;
 
@@ -28,8 +36,11 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
   const [sellingPrice, setSellingPrice] = useState(
     activeVariant?.selling_price !== undefined ? String(activeVariant.selling_price) : ""
   );
+  const [discountPercent, setDiscountPercent] = useState(
+    activeVariant?.discount_percent !== undefined ? String(activeVariant.discount_percent) : "0"
+  );
   const [isActive, setIsActive] = useState(
-    activeVariant?.is_active !== undefined ? Boolean(activeVariant.is_active) : true
+    activeVariant ? isVarActive(activeVariant) : true
   );
 
   // Form states - Product Photo (Image URL: 1 URL per product, not per variant)
@@ -47,7 +58,10 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
       setSellingPrice(
         activeVariant.selling_price !== undefined ? String(activeVariant.selling_price) : ""
       );
-      setIsActive(activeVariant.is_active !== undefined ? Boolean(activeVariant.is_active) : true);
+      setDiscountPercent(
+        activeVariant.discount_percent !== undefined ? String(activeVariant.discount_percent) : "0"
+      );
+      setIsActive(isVarActive(activeVariant));
       setFormErrors({});
       setSuccessMessage("");
     }
@@ -79,9 +93,16 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
       errors.selling_price = "Selling price cannot exceed ₹1,00,00,000.";
     }
 
-    // Optional Image URL format check
+    const discountNum = Number(discountPercent);
+    if (discountPercent === "" || isNaN(discountNum) || discountNum < 0 || discountNum > 90) {
+      errors.discount_percent = "Discount percentage must be a number between 0% and 90%.";
+    }
+
+    // Mandatory Image URL format check
     const trimmedImage = imageUrl.trim();
-    if (trimmedImage) {
+    if (!trimmedImage) {
+      errors.image_url = "Product image web URL is mandatory.";
+    } else {
       try {
         const parsedUrl = new URL(trimmedImage);
         if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
@@ -103,6 +124,7 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
         color_size: trimmedColor,
         selling_price: priceNum,
         is_active: isActive ? 1 : 0,
+        discount_percent: Math.round(discountNum),
       };
 
       // 1. Update product photo if changed or provided (executes sp_update_product)
@@ -111,7 +133,6 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
       if (imageToSave !== (product.image || null)) {
         await updateProduct(product.id, {
           product_name: product.name,
-          base_price: product.price,
           product_description: product.description,
           image_url: imageToSave,
         });
@@ -203,9 +224,6 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
                 <span className="text-xs text-stone-400">Product #{product.id}</span>
               </div>
               <h4 className="text-sm font-bold text-stone-900 truncate mt-1">{product.name}</h4>
-              <p className="text-xs text-stone-500">
-                Base Catalog Price: <strong className="text-stone-800">₹{Number(product.price).toLocaleString("en-IN")}</strong>
-              </p>
             </div>
           </div>
 
@@ -215,10 +233,10 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
                   <span>📸</span>
-                  <span>Product Photo URL</span>
+                  <span>Product Photo URL *</span>
                 </span>
                 <span className="rounded-full bg-amber-200 text-amber-900 text-[9px] font-extrabold uppercase px-2 py-0.5">
-                  1 Photo for all variants
+                  Mandatory (Web Link)
                 </span>
               </div>
               <span className="text-[10px] text-amber-800 font-mono">
@@ -318,22 +336,35 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
                 Choose Variant to Update ({variants.length} available):
               </label>
               <div className="flex flex-wrap gap-2">
-                {variants.map((v) => (
-                  <button
-                    key={v.variant_id}
-                    type="button"
-                    onClick={() => setSelectedVariantId(v.variant_id)}
-                    className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
-                      selectedVariantId === v.variant_id
-                        ? "bg-stone-900 text-white shadow-sm ring-2 ring-stone-900"
-                        : "bg-white border border-stone-300 text-stone-700 hover:bg-stone-100"
-                    }`}
-                  >
-                    <span>ID #{v.variant_id}:</span>
-                    <strong>{v.color_size}</strong>
-                    <span className="text-[10px] opacity-80">(₹{v.selling_price})</span>
-                  </button>
-                ))}
+                {variants.map((v) => {
+                  const varActive = isVarActive(v);
+                  return (
+                    <button
+                      key={v.variant_id}
+                      type="button"
+                      onClick={() => setSelectedVariantId(v.variant_id)}
+                      className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                        selectedVariantId === v.variant_id
+                          ? "bg-stone-900 text-white shadow-sm ring-2 ring-stone-900"
+                          : "bg-white border border-stone-300 text-stone-700 hover:bg-stone-100"
+                      } ${!varActive ? "border-dashed" : ""}`}
+                    >
+                      <span>ID #{v.variant_id}:</span>
+                      <strong>{v.color_size}</strong>
+                      <span className="text-[10px] opacity-80">(₹{v.selling_price})</span>
+                      {v.discount_percent > 0 && (
+                        <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.5 text-[9px] font-bold">
+                          {v.discount_percent}% OFF
+                        </span>
+                      )}
+                      {!varActive && (
+                        <span className="rounded bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 text-[9px] font-bold">
+                          🔴 Inactive
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -442,6 +473,111 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
               )}
             </div>
 
+            {/* Discount Percentage Field */}
+            <div className="rounded-2xl border border-stone-200 bg-stone-50/70 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-stone-800">
+                  🏷️ Variant Discount (% OFF)
+                </label>
+                <span className="text-[10px] text-stone-500 font-medium">
+                  {Number(discountPercent) > 0 ? `${discountPercent}% Discount Active` : "No discount"}
+                </span>
+              </div>
+
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  max="90"
+                  step="1"
+                  placeholder="e.g. 30"
+                  value={discountPercent}
+                  onChange={(e) => {
+                    setDiscountPercent(e.target.value);
+                    if (formErrors.discount_percent) {
+                      setFormErrors({ ...formErrors, discount_percent: null });
+                    }
+                  }}
+                  className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-xs text-stone-900 focus:outline-none transition pr-8 ${
+                    formErrors.discount_percent
+                      ? "border-red-500 ring-2 ring-red-100"
+                      : "border-stone-300 focus:border-amber-700"
+                  }`}
+                />
+                <span className="absolute right-3.5 top-2.5 text-xs text-stone-400 font-bold">%</span>
+              </div>
+
+              {/* Quick discount chip buttons */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <span className="text-[10px] text-stone-400 font-medium mr-1">Quick Select:</span>
+                {[0, 10, 15, 20, 25, 30, 40, 50].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => {
+                      setDiscountPercent(String(pct));
+                      if (formErrors.discount_percent) {
+                        setFormErrors({ ...formErrors, discount_percent: null });
+                      }
+                    }}
+                    className={`rounded-lg px-2 py-0.5 text-[11px] font-bold transition cursor-pointer ${
+                      Number(discountPercent) === pct
+                        ? "bg-amber-700 text-white shadow-xs"
+                        : "bg-white border border-stone-200 text-stone-700 hover:border-amber-500 hover:bg-amber-50/50"
+                    }`}
+                  >
+                    {pct === 0 ? "0% (None)" : `${pct}%`}
+                  </button>
+                ))}
+              </div>
+
+              {formErrors.discount_percent && (
+                <p className="mt-1 text-[11px] font-semibold text-red-600">
+                  {formErrors.discount_percent}
+                </p>
+              )}
+
+              {/* Real-time price breakdown preview */}
+              {Number(sellingPrice) > 0 && (
+                <div className="rounded-xl border border-stone-200 bg-white p-2.5 text-xs flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-stone-500 font-medium">Storefront Preview:</span>
+                    {Number(discountPercent) > 0 ? (
+                      <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black text-white shadow-xs">
+                        {discountPercent}% OFF
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-stone-100 border border-stone-200 px-2 py-0.5 text-[10px] font-semibold text-stone-600">
+                        Regular Price
+                      </span>
+                    )}
+                  </div>
+                  {(() => {
+                    const base = Number(sellingPrice) || 0;
+                    const disc = Number(discountPercent) || 0;
+                    const finalPayable = disc > 0 ? Math.round(base * (1 - disc / 100)) : base;
+                    return (
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-sm font-black text-stone-900">
+                          ₹{finalPayable.toLocaleString("en-IN")}
+                        </span>
+                        {disc > 0 && (
+                          <>
+                            <span className="text-xs text-stone-400 line-through font-medium">
+                              ₹{base.toLocaleString("en-IN")}
+                            </span>
+                            <span className="text-[11px] text-emerald-700 font-bold">
+                              (Saves ₹{(base - finalPayable).toLocaleString("en-IN")})
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
             {/* Active Status */}
             <div>
               <label className="block text-xs font-bold text-stone-700 mb-1">
@@ -455,6 +591,11 @@ function EditVariantModal({ isOpen, onClose, product, initialVariant, onVariantU
                 <option value="1">🟢 Active (Available for customers)</option>
                 <option value="0">🔴 Inactive (Hidden / Discontinued)</option>
               </select>
+              <p className="mt-1 text-[11px] text-stone-500">
+                {isActive
+                  ? "✓ Variant is active: Customers can see and purchase this variant on the storefront."
+                  : "⏸ Variant is inactive: Hidden from customers on the storefront. Staff can reactivate it anytime."}
+              </p>
             </div>
 
             {/* Footer Buttons */}

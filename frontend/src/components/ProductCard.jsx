@@ -4,14 +4,23 @@ import { getProductDiscount } from "../utils/discount.js";
 function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelectCategory, onSelectProduct }) {
   const [imgError, setImgError] = useState(false);
 
+<<<<<<< HEAD
   useEffect(() => {
     setImgError(false);
   }, [product?.image, product?.id]);
 
   const variants =
+=======
+  const allVariants =
+>>>>>>> 677ec24df5958ddaac8b9382eac3a8918ef17532
     product.variants && product.variants.length > 0
       ? product.variants
       : [];
+
+  // For customers: only show active variants. For employees: show all variants so they can manage inactive ones.
+  const variants = isEmployee
+    ? allVariants
+    : allVariants.filter((v) => v.is_active === 1 || v.is_active === true || v.is_active === "1");
 
   // Selected variant state (default to first available variant)
   const [selectedVariantId, setSelectedVariantId] = useState(
@@ -22,13 +31,13 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
     variants.find((v) => v.variant_id === selectedVariantId) ||
     variants[0];
 
-  const displayPrice =
+  const baseSellingPrice =
     selectedVariant?.selling_price ?? product.price ?? 0;
 
   const isOutOfStock =
     product.total_stock !== undefined && product.total_stock <= 0;
 
-  const { discountPercent, originalPrice } = getProductDiscount(product, displayPrice);
+  const { discountPercent, originalPrice, displayPrice, finalPrice } = getProductDiscount(product, baseSellingPrice, selectedVariant);
 
   function handleAddToCartClick(e) {
     e.stopPropagation();
@@ -37,6 +46,8 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
       onAddToCart({
         ...product,
         price: displayPrice,
+        originalPrice: originalPrice,
+        discountPercent: discountPercent,
         selectedVariant: selectedVariant || null,
         selectedColorSize: selectedVariant?.color_size || null,
       });
@@ -57,13 +68,13 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
   return (
     <article
       onClick={handleCardClick}
-      className={`group flex flex-col justify-between overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer ${
+      className={`group flex flex-col justify-between h-full w-full flex-1 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer ${
         isEmployee ? "ring-1 hover:ring-2 hover:ring-amber-500/70" : ""
       }`}
     >
       <div className="flex flex-col flex-1">
         {/* Product Image */}
-        <div className="relative h-40 sm:h-44 w-full overflow-hidden bg-stone-100">
+        <div className="relative h-40 sm:h-44 w-full shrink-0 overflow-hidden bg-stone-100">
           {!imgError && product.image ? (
             <img
               src={product.image}
@@ -95,7 +106,7 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
             </div>
           )}
 
-          {/* Badges: Brand, Category, Discount */}
+          {/* Badges: Brand, Discount */}
           <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1 items-center">
             {discountPercent > 0 && (
               <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black tracking-wide text-white shadow-xs backdrop-blur-sm">
@@ -109,22 +120,10 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
               </span>
             )}
 
-            {product.category && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  if (onSelectCategory) {
-                    e.stopPropagation();
-                    onSelectCategory(product.category);
-                  }
-                }}
-                className={`rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-stone-700 shadow-xs backdrop-blur-sm transition ${
-                  onSelectCategory ? "hover:bg-amber-100 hover:text-amber-900 cursor-pointer" : ""
-                }`}
-                title={onSelectCategory ? `View ${product.category} in Grid View` : product.category}
-              >
-                {product.category}
-              </button>
+            {isEmployee && allVariants.length > 0 && !allVariants.some((v) => v.is_active === 1 || v.is_active === true || v.is_active === "1") && (
+              <span className="rounded-full bg-red-600/90 text-white px-2 py-0.5 text-[9px] font-black uppercase shadow-xs">
+                Hidden (All Inactive)
+              </span>
             )}
           </div>
 
@@ -140,25 +139,6 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
               <span>{Number(product.rating).toFixed(1)}</span>
             </div>
           )}
-
-          {/* Stock Badge */}
-          {product.total_stock !== undefined && (
-            <div className="absolute bottom-2.5 left-2.5">
-              {product.total_stock <= 0 ? (
-                <span className="rounded-full bg-red-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
-                  Out of Stock
-                </span>
-              ) : product.total_stock <= 10 ? (
-                <span className="rounded-full bg-amber-600/90 px-2 py-0.5 text-[10px] font-semibold text-white shadow-xs">
-                  Only {product.total_stock} left
-                </span>
-              ) : (
-                <span className="rounded-full bg-emerald-800/80 px-2 py-0.5 text-[10px] font-semibold text-white shadow-xs backdrop-blur-sm">
-                  In Stock ({product.total_stock})
-                </span>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Product Details */}
@@ -171,12 +151,6 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
               >
                 {product.name}
               </h3>
-
-              {isEmployee && (
-                <span className="text-[9px] bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold shrink-0">
-                  Edit
-                </span>
-              )}
             </div>
 
             <p className="mt-1 line-clamp-2 text-xs text-stone-500 leading-relaxed min-h-[32px]">
@@ -186,29 +160,34 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
 
           {/* Variant Selector */}
           {variants.length > 0 && (
-            <div className="mt-2.5">
+            <div className="mt-2.5 min-h-[48px] flex flex-col justify-end">
               <div className="text-[10px] font-semibold text-stone-500 mb-1">
                 Option / Size:
               </div>
 
               <div className="flex flex-wrap gap-1">
-                {variants.map((v) => (
-                  <button
-                    key={v.variant_id}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedVariantId(v.variant_id);
-                    }}
-                    className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition ${
-                      selectedVariantId === v.variant_id
-                        ? "bg-amber-700 text-white shadow-xs"
-                        : "border border-stone-200 bg-stone-50 text-stone-700 hover:border-amber-700"
-                    }`}
-                  >
-                    {v.color_size}
-                  </button>
-                ))}
+                {variants.map((v) => {
+                  const isVarActive = v.is_active === 1 || v.is_active === true || v.is_active === "1";
+                  return (
+                    <button
+                      key={v.variant_id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedVariantId(v.variant_id);
+                      }}
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition ${
+                        selectedVariantId === v.variant_id
+                          ? "bg-amber-700 text-white shadow-xs"
+                          : "border border-stone-200 bg-stone-50 text-stone-700 hover:border-amber-700"
+                      } ${!isVarActive ? "opacity-60 border-dashed" : ""}`}
+                      title={!isVarActive ? `${v.color_size} (Inactive - Hidden from customers)` : v.color_size}
+                    >
+                      {v.color_size}
+                      {!isVarActive && <span className="ml-1 text-[8px] text-red-500 font-bold">●</span>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -216,7 +195,7 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
       </div>
 
       {/* Price and Footer */}
-      <div className="border-t border-stone-100 p-3 pt-2.5 bg-stone-50/50">
+      <div className="border-t border-stone-100 p-3 pt-2.5 bg-stone-50/50 shrink-0 mt-auto">
         <div className="flex items-center justify-between gap-2">
           <div>
             <span className="text-[10px] text-stone-400 block font-medium uppercase tracking-wider">
@@ -266,12 +245,6 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
               </svg>
               <span>{isOutOfStock ? "Out" : "Add"}</span>
             </button>
-          )}
-
-          {isEmployee && (
-            <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-              ✏️ Edit
-            </span>
           )}
         </div>
       </div>

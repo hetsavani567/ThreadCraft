@@ -46,6 +46,7 @@ const formatProduct = (prod) => {
         price,
         original_price: originalPrice,
         discount_percent: discountPercent,
+        has_active_variant: Number(prod.has_active_variant || 0),
         rating: Number(prod.rating),
         review_count: Number(prod.review_count),
         total_stock: Number(prod.total_stock),
@@ -71,6 +72,16 @@ export const addProductWithVariant = async (data) => {
     return formatProduct(createdProduct);
 };
 
+export const addProductOnly = async (data) => {
+    const result = await productModel.createProductOnly(data);
+    const createdProduct = await productModel.getProductById(result.productId);
+    return formatProduct(createdProduct);
+};
+
+export const addVariantToProduct = async (productId, data) => {
+    return await productModel.addVariantToProduct(productId, data);
+};
+
 export const updateProductVariant = async (variantId, data) => {
     return await productModel.updateProductVariant(variantId, data);
 };
@@ -85,6 +96,10 @@ export const addProductReview = async (productId, data) => {
 
 export const removeProductReview = async (reviewId) => {
     return await productModel.deleteReview(reviewId);
+};
+
+export const adjustProductStock = async (productId, data) => {
+    return await productModel.updateProductStock(productId, data);
 };
 
 

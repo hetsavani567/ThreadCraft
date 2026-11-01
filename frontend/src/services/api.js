@@ -148,10 +148,24 @@ export async function createProduct(productData) {
   });
 }
 
+export async function addProductVariant(productId, variantData) {
+  return apiRequest(`/products/${productId}/variants`, {
+    method: "POST",
+    body: JSON.stringify(variantData),
+  });
+}
+
 export async function updateProductVariant(variantId, variantData) {
   return apiRequest(`/products/variants/${variantId}`, {
     method: "PUT",
     body: JSON.stringify(variantData),
+  });
+}
+
+export async function updateProductStock(productId, stockData = {}) {
+  return apiRequest(`/products/${productId}/stock`, {
+    method: "PATCH",
+    body: JSON.stringify(stockData),
   });
 }
 

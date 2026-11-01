@@ -16,4 +16,29 @@
 -- [2026-10-29T15:17:02.922Z] INSERT REVIEW: product_id=1, rating=5, customer="Het Savani"
 -- [2026-10-29T15:30:00.000Z] MIGRATION: Divided generic 'Clothing' category into 'Topwear' (ID: 8) and 'Bottomwear' (ID: 9)
 -- [2026-10-29T16:39:59.727Z] DELETE REVIEW: review_id=22, product_id=3
+<<<<<<< HEAD
 -- [2026-10-29T18:48:00.000Z] STANDARDIZATION: Standardized all 31 product Image_URLs to Puma Running Shoes studio e-commerce format (?auto=format&fit=crop&w=700&q=80)
+=======
+-- [2026-10-30T03:29:17.193Z] UPDATE INVENTORY: product_id=1, delta=5, branch_id=1, new_total_stock=146
+-- [2026-10-30T03:29:17.411Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=141
+-- [2026-10-30T03:51:14.549Z] UPDATE INVENTORY: product_id=1, delta=5, branch_id=1, new_total_stock=146
+-- [2026-10-30T03:51:25.932Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=141
+-- [2026-10-30T03:51:26.235Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=136
+-- [2026-10-30T03:51:26.542Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=131
+-- [2026-10-30T03:51:30.598Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=126
+-- [2026-10-30T03:51:32.482Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=121
+-- [2026-10-30T03:51:33.198Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=116
+-- [2026-10-30T03:51:34.427Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=111
+-- [2026-11-01T05:07:55.234Z] UPDATE VARIANT: variant_id=4, color_size="Red-9", selling_price=3499, discount_percent=30%, is_active=true
+-- [2026-11-01T05:20:00.215Z] UPDATE VARIANT: variant_id=4, color_size="Red-9", selling_price=3499, discount_percent=20%, is_active=true
+-- [2026-11-01T05:58:35.496Z] UPDATE VARIANT: variant_id=4, color_size="Red-9", selling_price=3499, discount_percent=0%, is_active=true
+-- [2026-11-01T06:17:15.033Z] UPDATE VARIANT: variant_id=4, color_size="Red-9", selling_price=3499, discount_percent=40%, is_active=true
+-- [2026-11-01T06:31:02.435Z] UPDATE VARIANT: variant_id=4, color_size="Red-9", selling_price=3499, discount_percent=50%, is_active=true
+-- [2026-11-01T08:56:36.943Z] INSERT REVIEW: product_id=3, rating=3, customer="Priya Shah"
+-- [2026-11-01T09:03:24.072Z] INSERT REVIEW: product_id=10, rating=5, customer="Priya Shah"
+-- [2026-11-01T10:08:07.623Z] UPDATE VARIANT: variant_id=4, color_size="Red-9", selling_price=3499, discount_percent=50%, is_active=false
+-- [2026-11-01T10:08:42.421Z] UPDATE VARIANT: variant_id=5, color_size="Black-8", selling_price=3599, discount_percent=30%, is_active=false
+-- [2026-11-01T10:10:05.747Z] UPDATE VARIANT: variant_id=1, color_size="Black-8", selling_price=3599, discount_percent=25%, is_active=true
+-- [2026-11-01T10:29:53.700Z] UPDATE VARIANT: variant_id=5, color_size="Black-8", selling_price=3599, discount_percent=30%, is_active=true
+-- [2026-11-01T10:30:35.306Z] UPDATE VARIANT: variant_id=4, color_size="Red-9", selling_price=3499, discount_percent=25%, is_active=true
+>>>>>>> 677ec24df5958ddaac8b9382eac3a8918ef17532
