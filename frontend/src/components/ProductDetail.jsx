@@ -18,6 +18,8 @@ function ProductDetail({
   onNavigateToAuth,
   onNavigateToOrders,
   onLogout,
+  searchQuery = "",
+  onSearchChange,
 }) {
   const isEmployee = Boolean(
     currentUser &&
@@ -669,6 +671,8 @@ function ProductDetail({
         onLogout={onLogout}
         onNavigateToOrders={onNavigateToOrders}
         onNavigateToStore={onNavigateHome || onNavigateBack}
+        searchQuery={searchQuery}
+        onSearchChange={onSearchChange}
         onOpenEmployeePortal={() => {
           window.location.hash = "#terminal";
           if (onNavigateHome) onNavigateHome();

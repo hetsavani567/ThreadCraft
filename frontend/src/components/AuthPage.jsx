@@ -458,9 +458,6 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout, on
           <h1 className="text-2xl font-bold text-stone-900">
             {mode === "signin" ? "Sign In to ThreadCraft" : "Create your Account"}
           </h1>
-          <p className="mt-1 text-xs text-stone-500">
-            Secure session authentication with access &amp; refresh JWT tokens.
-          </p>
 
           {/* Mode Switch Tabs */}
           <div className="mt-5 grid grid-cols-2 gap-2 border-b border-stone-200">
@@ -667,18 +664,6 @@ function AuthPage({ onNavigateToStore, currentUser, onLoginSuccess, onLogout, on
           ) : (
             /* SIGN UP FORM */
             <form onSubmit={handleSignUpSubmit} className="mt-4 max-h-[58vh] space-y-3.5 overflow-y-auto pr-1">
-              <div
-                className={`rounded-xl border p-3 text-xs ${
-                  signupIsEmployee
-                    ? "border-amber-200 bg-amber-50 text-amber-900"
-                    : "border-stone-200 bg-stone-50 text-stone-600"
-                }`}
-              >
-                {signupIsEmployee
-                  ? "👔 Employee registration: @thread.com email activates staff portal permissions."
-                  : "👤 Customer registration: creates your retail clothing profile."}
-              </div>
-
               <div>
                 <label className="mb-1 block text-xs font-semibold text-stone-700">Full Name</label>
                 <input

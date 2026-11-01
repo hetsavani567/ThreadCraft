@@ -118,25 +118,6 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
               <span>{Number(product.rating).toFixed(1)}</span>
             </div>
           )}
-
-          {/* Stock Badge */}
-          {product.total_stock !== undefined && (
-            <div className="absolute bottom-2.5 left-2.5">
-              {product.total_stock <= 0 ? (
-                <span className="rounded-full bg-red-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
-                  Out of Stock
-                </span>
-              ) : product.total_stock <= 10 ? (
-                <span className="rounded-full bg-amber-600/90 px-2 py-0.5 text-[10px] font-semibold text-white shadow-xs">
-                  Only {product.total_stock} left
-                </span>
-              ) : (
-                <span className="rounded-full bg-emerald-800/80 px-2 py-0.5 text-[10px] font-semibold text-white shadow-xs backdrop-blur-sm">
-                  In Stock ({product.total_stock})
-                </span>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Product Details */}

@@ -24,12 +24,16 @@ function Dashboard({
   onAddToCart: externalOnAddToCart,
   onChangeQuantity: externalOnChangeQuantity,
   onRemoveFromCart: externalOnRemoveFromCart,
+  searchQuery: externalSearch,
+  onSearchChange: externalOnSearchChange,
 }) {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(["All"]);
-  const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedBrand, setSelectedBrand] = useState("All");
+  const [internalSearch, setInternalSearch] = useState("");
+  const search = externalSearch !== undefined ? externalSearch : internalSearch;
+  const setSearch = externalOnSearchChange || setInternalSearch;
+  const [selectedCategory, setSelectedCategory] = useState(initialCategoryFilter || "All");
+  const [selectedBrand, setSelectedBrand] = useState(initialBrandFilter || "All");
   const [internalCart, setInternalCart] = useState([]);
   const cart = externalCart !== undefined ? externalCart : internalCart;
   const setCart = externalSetCart || setInternalCart;
@@ -202,30 +206,76 @@ function Dashboard({
     loadData();
   }, [loadData]);
 
-  // // Listen for initial filter props from breadcrumb links
-  // useEffect(() => {
-  //   if (initialBrandFilter) {
-  //     setSelectedBrand(initialBrandFilter);
-  //     setSelectedCategory("All");
-  //     // Scroll to products
-  //     setTimeout(() => {
-  //       const el = document.getElementById("products");
-  //       if (el) el.scrollIntoView({ behavior: "smooth" });
-  //     }, 100);
-  //   }
-  // }, [initialBrandFilter]);
+  // Listen for initialCategoryFilter prop from breadcrumb links / App.jsx
+  useEffect(() => {
+    if (initialCategoryFilter) {
+      setSelectedCategory(initialCategoryFilter);
+      setSelectedBrand("All");
+      setSearch("");
+      if (externalOnSearchChange) externalOnSearchChange("");
+      setTimeout(() => {
+        const el = document.getElementById("products");
+        if (el) {
+          const header = document.querySelector("header");
+          const navbarHeight = header ? header.offsetHeight : 61;
+          const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+          window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+        }
+      }, 100);
+    }
+  }, [initialCategoryFilter]);
 
-  // Synchronize hash navigation for #payment, #products, and #cart
+  // Listen for initialBrandFilter prop from breadcrumb links / App.jsx
+  useEffect(() => {
+    if (initialBrandFilter) {
+      setSelectedBrand(initialBrandFilter);
+      setSelectedCategory("All");
+      setSearch("");
+      if (externalOnSearchChange) externalOnSearchChange("");
+      setTimeout(() => {
+        const el = document.getElementById("products");
+        if (el) {
+          const header = document.querySelector("header");
+          const navbarHeight = header ? header.offsetHeight : 61;
+          const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+          window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+        }
+      }, 100);
+    }
+  }, [initialBrandFilter]);
+
+  // Synchronize hash navigation for #payment, #products, #cart, #category, and #brand
   useEffect(() => {
     function handleHashChange() {
-      const hash = window.location.hash.toLowerCase();
+      const fullHash = window.location.hash || "";
+      const hash = fullHash.toLowerCase();
       if (hash === "#payment") {
         setIsPaymentPageOpen(true);
       } else if (hash === "#home" || hash === "#products" || hash === "#cart") {
         setIsPaymentPageOpen(false);
       }
 
-      if (hash === "#products") {
+      if (hash.startsWith("#category=")) {
+        const cat = decodeURIComponent(fullHash.slice("#category=".length).split("&")[0]);
+        if (cat) {
+          setSelectedCategory(cat);
+          setSelectedBrand("All");
+          setSearch("");
+          if (externalOnSearchChange) externalOnSearchChange("");
+          setIsPaymentPageOpen(false);
+        }
+      } else if (hash.startsWith("#brand=")) {
+        const br = decodeURIComponent(fullHash.slice("#brand=".length).split("&")[0]);
+        if (br) {
+          setSelectedBrand(br);
+          setSelectedCategory("All");
+          setSearch("");
+          if (externalOnSearchChange) externalOnSearchChange("");
+          setIsPaymentPageOpen(false);
+        }
+      }
+
+      if (hash === "#products" || hash.startsWith("#category=") || hash.startsWith("#brand=")) {
         setTimeout(() => {
           const el = document.getElementById("products");
           if (el) {
@@ -312,11 +362,18 @@ function Dashboard({
     }
   }
 
-  // Select a category and open in Grid View with smooth scroll
+  // Select a category and open in Grid View (or Horizontal View if "All") with smooth scroll
   function handleSelectCategory(category) {
+    setSearch("");
+    if (externalOnSearchChange) externalOnSearchChange("");
     setSelectedCategory(category);
-    if (category !== "All") setSelectedBrand("All");
+    setSelectedBrand("All");
     if (onClearInitialFilters) onClearInitialFilters();
+    if (category === "All") {
+      window.history.pushState(null, "", "#products");
+    } else {
+      window.history.pushState(null, "", `#category=${encodeURIComponent(category)}`);
+    }
     const el = document.getElementById("products");
     if (el) {
       const header = document.querySelector("header");
@@ -485,6 +542,8 @@ function Dashboard({
         onLogout={onLogout}
         onOpenEmployeePortal={() => setIsEmployeePortalOpen(true)}
         onNavigateToOrders={onNavigateToOrders}
+        searchQuery={search}
+        onSearchChange={setSearch}
       />
 
       <main>
@@ -563,36 +622,6 @@ function Dashboard({
                 Shop your style
               </h2>
             </div>
-
-            <div className="w-full sm:max-w-sm">
-              <label
-                htmlFor="product-search"
-                className="mb-2 block text-sm font-semibold"
-              >
-                Search products
-              </label>
-
-              <div className="relative">
-                <input
-                  id="product-search"
-                  type="search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search by name, brand, category..."
-                  className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 pr-10 outline-none focus:border-amber-700 focus:ring-2 focus:ring-amber-100 transition"
-                />
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() => setSearch("")}
-                    className="absolute right-3 top-3 text-stone-400 hover:text-stone-600"
-                    aria-label="Clear search"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            </div>
           </div>
 
           {/* Category & Active Filter Pills */}
@@ -602,9 +631,9 @@ function Dashboard({
                 key={category}
                 type="button"
                 onClick={() => handleSelectCategory(category)}
-                aria-pressed={selectedCategory === category && selectedBrand === "All"}
+                aria-pressed={selectedCategory === category && selectedBrand === "All" && !search}
                 className={`rounded-full px-5 py-2.5 text-sm font-semibold transition cursor-pointer ${
-                  selectedCategory === category && selectedBrand === "All"
+                  selectedCategory === category && selectedBrand === "All" && !search
                     ? "bg-stone-900 text-white shadow-sm"
                     : "border border-stone-300 bg-white text-stone-700 hover:border-stone-900"
                 }`}
@@ -621,6 +650,13 @@ function Dashboard({
                   onClick={() => {
                     setSelectedBrand("All");
                     if (onClearInitialFilters) onClearInitialFilters();
+                    window.history.pushState(
+                      null,
+                      "",
+                      selectedCategory !== "All"
+                        ? `#category=${encodeURIComponent(selectedCategory)}`
+                        : "#products"
+                    );
                   }}
                   className="hover:text-red-600 text-xs cursor-pointer ml-1"
                   title="Clear brand filter"
@@ -756,41 +792,25 @@ function Dashboard({
             <div className="mt-8 rounded-2xl bg-white p-10 text-center border border-stone-200">
               <h3 className="text-xl font-bold">No products found</h3>
               <p className="mt-2 text-stone-600">
-                Try another search term or select another category.
+                {search ? `No products match "${search}". Try another search term.` : "Try another search term or select another category."}
               </p>
               <button
                 type="button"
                 onClick={() => {
                   setSearch("");
                   setSelectedCategory("All");
+                  setSelectedBrand("All");
+                  if (onClearInitialFilters) onClearInitialFilters();
+                  window.location.hash = "#products";
                 }}
                 className="mt-4 rounded-full bg-stone-900 px-5 py-2.5 text-white hover:bg-amber-700 transition cursor-pointer"
               >
                 Clear filters
               </button>
             </div>
-          ) : selectedCategory !== "All" ? (
-            /* Specific Category Selected: RENDER IN GRID FORMAT */
+          ) : (selectedCategory !== "All" || selectedBrand !== "All" || (search && search.trim() !== "")) ? (
+            /* Specific Category, Brand, or Active Search: RENDER IN GRID FORMAT */
             <div className="mt-6">
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200/80 bg-white px-5 py-3.5 shadow-xs">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse" />
-                  <p className="text-sm font-bold text-stone-800">
-                    Showing <span className="text-amber-800 font-black">{selectedCategory}</span> products in Grid View
-                  </p>
-                  <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-bold text-stone-600 border border-stone-200">
-                    {filteredProducts.length} {filteredProducts.length === 1 ? "item" : "items"}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategory("All")}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 hover:text-amber-900 transition cursor-pointer"
-                >
-                  <span>← Switch to All Categories (Horizontal View)</span>
-                </button>
-              </div>
-
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 {filteredProducts.map((product) => (
                   <ProductCard

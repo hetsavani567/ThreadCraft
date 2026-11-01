@@ -13,6 +13,15 @@ function App() {
   const [productHistory, setProductHistory] = useState([]);
   const [initialCategoryFilter, setInitialCategoryFilter] = useState(null);
   const [initialBrandFilter, setInitialBrandFilter] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  function handleSearchChange(newQuery) {
+    setSearchQuery(newQuery);
+    if (newQuery && newQuery.trim() !== "" && currentView !== "store") {
+      setCurrentView("store");
+      window.location.hash = "#products";
+    }
+  }
 
   // Cart State persistent in localStorage
   const [cart, setCart] = useState(() => {
@@ -97,6 +106,7 @@ function App() {
       } else if (hashLower.startsWith("#category=")) {
         const catValue = decodeURIComponent(fullHash.slice("#category=".length).split("&")[0]);
         setInitialCategoryFilter(catValue);
+        setInitialBrandFilter(null);
         setCurrentView("store");
       } else if (
         hashLower === "#terminal" ||
@@ -109,6 +119,7 @@ function App() {
       } else if (hashLower.startsWith("#brand=")) {
         const brandValue = decodeURIComponent(fullHash.slice("#brand=".length).split("&")[0]);
         setInitialBrandFilter(brandValue);
+        setInitialCategoryFilter(null);
         setCurrentView("store");
       } else {
         // default store view
@@ -458,6 +469,8 @@ function App() {
           onNavigateToAuth={navigateToAuth}
           onNavigateToOrders={navigateToOrders}
           onLogout={handleLogout}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
         />
       )}
 
@@ -479,6 +492,8 @@ function App() {
           onAddToCart={handleAddToCart}
           onChangeQuantity={changeQuantity}
           onRemoveFromCart={removeFromCart}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
         />
       )}
 
