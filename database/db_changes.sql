@@ -31,3 +31,5 @@
 -- [2026-11-01T05:58:35.496Z] UPDATE VARIANT: variant_id=4, color_size="Red-9", selling_price=3499, discount_percent=0%, is_active=true
 -- [2026-11-01T06:17:15.033Z] UPDATE VARIANT: variant_id=4, color_size="Red-9", selling_price=3499, discount_percent=40%, is_active=true
 -- [2026-11-01T06:31:02.435Z] UPDATE VARIANT: variant_id=4, color_size="Red-9", selling_price=3499, discount_percent=50%, is_active=true
+-- [2026-11-01T08:56:36.943Z] INSERT REVIEW: product_id=3, rating=3, customer="Priya Shah"
+-- [2026-11-01T09:03:24.072Z] INSERT REVIEW: product_id=10, rating=5, customer="Priya Shah"

@@ -93,46 +93,73 @@ function ProductDetail({
   }, [productId]);
 
   function handleAddToCartClick() {
+    if (!product || isOutOfStock) return;
+    const currentVariant = variants.find((v) => v.variant_id === selectedVariantId) || variants[0];
+    const variantDiscount = getProductDiscount(product, currentVariant?.selling_price || product.price || 0, currentVariant);
+    const priceToUse = variantDiscount.displayPrice;
+    const productPayload = {
+      ...product,
+      price: priceToUse,
+      originalPrice: variantDiscount.originalPrice,
+      discountPercent: variantDiscount.discountPercent,
+      selectedVariant: currentVariant || null,
+      selectedColorSize: currentVariant?.color_size || null,
+    };
+
     if (!currentUser) {
       if (onNavigateToAuth) {
-        onNavigateToAuth();
+        onNavigateToAuth({
+          returnHash: `#product?id=${product.id || productId}`,
+          returnProductId: product.id || productId,
+          pendingItem: productPayload,
+          quantity,
+          isBuyNow: false,
+        });
       } else {
         window.location.hash = "#auth";
       }
       return;
     }
-    if (!product || isOutOfStock) return;
-    const currentVariant = variants.find((v) => v.variant_id === selectedVariantId) || variants[0];
-    const variantDiscount = getProductDiscount(product, currentVariant?.selling_price || product.price || 0, currentVariant);
-    const priceToUse = variantDiscount.displayPrice;
 
     if (onAddToCart) {
-      onAddToCart(
-        {
-          ...product,
-          price: priceToUse,
-          originalPrice: variantDiscount.originalPrice,
-          discountPercent: variantDiscount.discountPercent,
-          selectedVariant: currentVariant || null,
-          selectedColorSize: currentVariant?.color_size || null,
-        },
-        quantity
-      );
+      onAddToCart(productPayload, quantity);
       setAddSuccessNotice(true);
       setTimeout(() => setAddSuccessNotice(false), 2500);
     }
   }
 
   function handleBuyNowClick() {
+    if (!product || isOutOfStock) return;
+    const currentVariant = variants.find((v) => v.variant_id === selectedVariantId) || variants[0];
+    const variantDiscount = getProductDiscount(product, currentVariant?.selling_price || product.price || 0, currentVariant);
+    const priceToUse = variantDiscount.displayPrice;
+    const productPayload = {
+      ...product,
+      price: priceToUse,
+      originalPrice: variantDiscount.originalPrice,
+      discountPercent: variantDiscount.discountPercent,
+      selectedVariant: currentVariant || null,
+      selectedColorSize: currentVariant?.color_size || null,
+    };
+
     if (!currentUser) {
       if (onNavigateToAuth) {
-        onNavigateToAuth();
+        onNavigateToAuth({
+          returnHash: `#product?id=${product.id || productId}`,
+          returnProductId: product.id || productId,
+          pendingItem: productPayload,
+          quantity,
+          isBuyNow: true,
+        });
       } else {
         window.location.hash = "#auth";
       }
       return;
     }
-    handleAddToCartClick();
+
+    if (onAddToCart) {
+      onAddToCart(productPayload, quantity);
+    }
     window.location.hash = "#payment";
   }
 
@@ -173,6 +200,9 @@ function ProductDetail({
       }
 
       setReviewComments("");
+      setReviewRating(5);
+      setReviewHoverRating(0);
+      setReviewFormOpen(false);
       setReviewSubmitSuccess(true);
       setTimeout(() => setReviewSubmitSuccess(false), 5000);
     } catch (err) {
