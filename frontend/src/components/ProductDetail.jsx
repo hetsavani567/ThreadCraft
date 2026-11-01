@@ -19,7 +19,13 @@ function ProductDetail({
   onNavigateToOrders,
   onLogout,
 }) {
-  const isEmployee = currentUser?.role === "employee";
+  const isEmployee = Boolean(
+    currentUser &&
+      (currentUser.role === "employee" ||
+        currentUser.userType === "employee" ||
+        Boolean(currentUser.emp_id) ||
+        (currentUser.email && currentUser.email.toLowerCase().endsWith("@thread.com")))
+  );
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -50,7 +56,10 @@ function ProductDetail({
   }, [currentUser, reviewName]);
 
   useEffect(() => {
-    if (!productId) return;
+    if (!productId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -265,7 +274,7 @@ function ProductDetail({
   const selectedVariant = variants.find((v) => v.variant_id === selectedVariantId) || variants[0];
   const displayPrice = selectedVariant?.selling_price || product.price || 0;
   const isOutOfStock = product.total_stock !== undefined && product.total_stock <= 0;
-  const { discountPercent, originalPrice, savings } = getProductDiscount(product, displayPrice);
+  const { discountPercent, originalPrice, savings } = getProductDiscount(product, displayPrice, selectedVariant);
 
   const reviewsList = Array.isArray(product.reviews) ? product.reviews : [];
   const ratingCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
@@ -627,6 +636,11 @@ function ProductDetail({
         onLogout={onLogout}
         onNavigateToOrders={onNavigateToOrders}
         onNavigateToStore={onNavigateHome || onNavigateBack}
+        onOpenEmployeePortal={() => {
+          window.location.hash = "#terminal";
+          if (onNavigateHome) onNavigateHome();
+          else if (onNavigateBack) onNavigateBack();
+        }}
       />
 
       {/* Breadcrumb Navigation with interactive links */}
@@ -1048,10 +1062,6 @@ function ProductDetail({
                           {product.category || "N/A"}
                         </button>
                       </td>
-                    </tr>
-                    <tr className="border-b border-stone-100">
-                      <td className="py-3 pr-4 font-semibold text-stone-500">Base Price</td>
-                      <td className="py-3 text-stone-900 font-medium">₹{Number(product.price).toLocaleString("en-IN")}</td>
                     </tr>
                     {variants.length > 0 && (
                       <tr className="border-b border-stone-100">

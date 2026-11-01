@@ -71,6 +71,16 @@ export const addProductWithVariant = async (data) => {
     return formatProduct(createdProduct);
 };
 
+export const addProductOnly = async (data) => {
+    const result = await productModel.createProductOnly(data);
+    const createdProduct = await productModel.getProductById(result.productId);
+    return formatProduct(createdProduct);
+};
+
+export const addVariantToProduct = async (productId, data) => {
+    return await productModel.addVariantToProduct(productId, data);
+};
+
 export const updateProductVariant = async (variantId, data) => {
     return await productModel.updateProductVariant(variantId, data);
 };

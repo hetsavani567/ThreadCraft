@@ -7,7 +7,13 @@ function Navbar({
   onNavigateToOrders,
   onNavigateToStore,
 }) {
-  const isEmployee = currentUser?.role === "employee";
+  const isEmployee = Boolean(
+    currentUser &&
+      (currentUser.role === "employee" ||
+        currentUser.userType === "employee" ||
+        Boolean(currentUser.emp_id) ||
+        (currentUser.email && currentUser.email.toLowerCase().endsWith("@thread.com")))
+  );
   const isLoggedInCustomer = Boolean(currentUser && !isEmployee);
 
   function handleHomeClick(e) {
@@ -151,7 +157,7 @@ function Navbar({
                   {isEmployee ? "👔" : currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
                 </span>
                 <span className="max-w-[110px] truncate sm:max-w-[140px]">
-                  {currentUser.name}
+                  {currentUser.name || currentUser.emp_name || "Staff"}
                 </span>
                 {isEmployee && (
                   <span className="rounded bg-amber-200 px-1.5 py-0.2 text-[9px] font-extrabold uppercase text-amber-900">

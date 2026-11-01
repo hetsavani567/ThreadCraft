@@ -35,7 +35,34 @@ function Dashboard({
   const setCart = externalSetCart || setInternalCart;
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isEmployeePortalOpen, setIsEmployeePortalOpen] = useState(false);
+  const [isEmployeePortalOpen, setIsEmployeePortalOpen] = useState(() => {
+    const hash = (window.location.hash || "").toLowerCase();
+    return (
+      hash === "#terminal" ||
+      hash === "#portal" ||
+      hash === "#staff" ||
+      hash === "#employee" ||
+      hash === "#staff-terminal"
+    );
+  });
+
+  useEffect(() => {
+    function handleTerminalHash() {
+      const hash = (window.location.hash || "").toLowerCase();
+      if (
+        hash === "#terminal" ||
+        hash === "#portal" ||
+        hash === "#staff" ||
+        hash === "#employee" ||
+        hash === "#staff-terminal"
+      ) {
+        setIsEmployeePortalOpen(true);
+      }
+    }
+    handleTerminalHash();
+    window.addEventListener("hashchange", handleTerminalHash);
+    return () => window.removeEventListener("hashchange", handleTerminalHash);
+  }, []);
   const [editingVariantProduct, setEditingVariantProduct] = useState(null);
   const [staffDiscountActive, setStaffDiscountActive] = useState(false);
   const [isPaymentPageOpen, setIsPaymentPageOpen] = useState(false);
@@ -68,7 +95,13 @@ function Dashboard({
     }
   }
 
-  const isEmployee = currentUser?.role === "employee";
+  const isEmployee = Boolean(
+    currentUser &&
+      (currentUser.role === "employee" ||
+        currentUser.userType === "employee" ||
+        Boolean(currentUser.emp_id) ||
+        (currentUser.email && currentUser.email.toLowerCase().endsWith("@thread.com")))
+  );
 
   // Employee live stock update handler - Persists directly to MySQL database
   async function handleUpdateStock(productId, delta) {
@@ -182,7 +215,7 @@ function Dashboard({
   //   }
   // }, [initialBrandFilter]);
 
-  // Synchronize hash navigation for #payment
+  // Synchronize hash navigation for #payment, #products, and #cart
   useEffect(() => {
     function handleHashChange() {
       const hash = window.location.hash.toLowerCase();
@@ -191,12 +224,34 @@ function Dashboard({
       } else if (hash === "#home" || hash === "#products" || hash === "#cart") {
         setIsPaymentPageOpen(false);
       }
+
+      if (hash === "#products") {
+        setTimeout(() => {
+          const el = document.getElementById("products");
+          if (el) {
+            const header = document.querySelector("header");
+            const navbarHeight = header ? header.offsetHeight : 61;
+            const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+            window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+          }
+        }, 80);
+      } else if (hash === "#cart") {
+        setTimeout(() => {
+          const el = document.getElementById("cart");
+          if (el) {
+            const header = document.querySelector("header");
+            const navbarHeight = header ? header.offsetHeight : 61;
+            const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+            window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+          }
+        }, 80);
+      }
     }
 
     handleHashChange();
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
+  }, [isLoading]);
 
   // Track visibility of Shop section and Cart section to float/hide bottom cart button
   const [isShopVisible, setIsShopVisible] = useState(false);
@@ -239,6 +294,21 @@ function Dashboard({
       const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
       window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
       window.history.pushState(null, "", "#cart");
+    }
+  }
+
+  // Smooth scroll to products section with navbar offset
+  function scrollToProducts(e) {
+    if (e) e.preventDefault();
+    const el = document.getElementById("products");
+    if (el) {
+      const header = document.querySelector("header");
+      const navbarHeight = header ? header.offsetHeight : 61;
+      const y = el.getBoundingClientRect().top + window.pageYOffset - navbarHeight + 1;
+      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+      window.history.pushState(null, "", "#products");
+    } else {
+      window.location.hash = "#products";
     }
   }
 
@@ -777,7 +847,8 @@ function Dashboard({
                 </p>
                 <a
                   href="#products"
-                  className="mt-5 inline-block rounded-full bg-stone-900 px-6 py-3 font-semibold text-white hover:bg-amber-700 transition"
+                  onClick={scrollToProducts}
+                  className="mt-5 inline-block rounded-full bg-stone-900 px-6 py-3 font-semibold text-white hover:bg-amber-700 transition cursor-pointer"
                 >
                   Browse Products
                 </a>
@@ -1087,6 +1158,7 @@ function Dashboard({
                           color_size: updated.color_size,
                           selling_price: updated.selling_price,
                           is_active: updated.is_active,
+                          discount_percent: updated.discount_percent,
                         }
                       : v
                   );

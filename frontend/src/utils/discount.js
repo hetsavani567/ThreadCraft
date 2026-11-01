@@ -1,9 +1,9 @@
 /**
- * Computes discount percentage, original MRP price, and savings for any product.
+ * Computes discount percentage, original MRP price, and savings for any product or variant.
  *
  * Priority order:
- * 1. If product has an explicit `discount_percent` or `discountPercent`, use that.
- * 2. If product has `original_price` or `mrp` greater than current price, compute `(original - current) / original * 100`.
+ * 1. If variant or product has an explicit `discount_percent` or `discountPercent`, use that.
+ * 2. If variant or product has `original_price` or `mrp` greater than current price, compute `(original - current) / original * 100`.
  * 3. Specific product / category discount tiers:
  *    - Footwear / Shoes: 30% OFF
  *    - Jackets / Winterwear / Hoodies: 25% OFF
@@ -13,7 +13,7 @@
  *    - T-Shirts / Casuals: 20% OFF
  *    - Others: deterministic 18% - 30% OFF based on product ID
  */
-export function getProductDiscount(product, displayPrice = null) {
+export function getProductDiscount(product, displayPrice = null, variant = null) {
   if (!product) {
     return { discountPercent: 0, originalPrice: 0, displayPrice: 0, savings: 0 };
   }
@@ -21,15 +21,25 @@ export function getProductDiscount(product, displayPrice = null) {
   const currentPrice = Number(
     displayPrice !== null && displayPrice !== undefined
       ? displayPrice
-      : product.selling_price ?? product.price ?? 0
+      : variant?.selling_price ?? product.selling_price ?? product.price ?? 0
   );
 
-  let discount = product.discount_percent ?? product.discountPercent;
+  let discount =
+    variant?.discount_percent ??
+    variant?.discountPercent ??
+    product.discount_percent ??
+    product.discountPercent;
 
   if (discount === undefined || discount === null) {
-    if (product.original_price && Number(product.original_price) > currentPrice) {
+    const original =
+      variant?.original_price ??
+      variant?.mrp ??
+      product.original_price ??
+      product.mrp;
+
+    if (original && Number(original) > currentPrice) {
       discount = Math.round(
-        ((Number(product.original_price) - currentPrice) / Number(product.original_price)) * 100
+        ((Number(original) - currentPrice) / Number(original)) * 100
       );
     } else {
       const id = Number(product.id || product.product_id || 1);
@@ -97,9 +107,15 @@ export function getProductDiscount(product, displayPrice = null) {
 
   const discountPercent = Math.max(0, Math.min(90, Math.round(Number(discount) || 0)));
 
+  const explicitOriginal =
+    variant?.original_price ??
+    variant?.mrp ??
+    product.original_price ??
+    product.mrp;
+
   const originalPrice =
-    product.original_price && Number(product.original_price) > currentPrice
-      ? Number(product.original_price)
+    explicitOriginal && Number(explicitOriginal) > currentPrice
+      ? Number(explicitOriginal)
       : discountPercent > 0 && currentPrice > 0
       ? Math.round(currentPrice / (1 - discountPercent / 100))
       : currentPrice;

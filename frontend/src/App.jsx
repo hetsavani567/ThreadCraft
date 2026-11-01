@@ -71,13 +71,13 @@ function App() {
 
       if (hashLower === "#login" || hashLower === "#signup" || hashLower === "#auth") {
         setCurrentView("auth");
-      } else if (hashLower === "#orders" || hashLower === "#tracking" || hashLower.startsWith("#orders")) {
+      } else if (hashLower.startsWith("#orders") || hashLower.startsWith("#tracking")) {
         const idMatch = fullHash.match(/[?&]id=([^&]+)/i);
         if (idMatch && idMatch[1]) {
           setSelectedOrderId(idMatch[1]);
         }
         setCurrentView("orders");
-      } else if (hashLower.startsWith("#product")) {
+      } else if (hashLower.startsWith("#product?") || hashLower.startsWith("#product/")) {
         const idMatch = fullHash.match(/[?&]id=([^&]+)/i);
         if (idMatch && idMatch[1]) {
           const pid = idMatch[1];
@@ -86,11 +86,25 @@ function App() {
             if (prev[prev.length - 1] === pid) return prev;
             return [...prev, pid];
           });
+          setCurrentView("product");
+        } else {
+          setCurrentView("store");
         }
-        setCurrentView("product");
+      } else if (hashLower === "#product") {
+        setCurrentView("store");
+      } else if (hashLower === "#products" || hashLower.startsWith("#products")) {
+        setCurrentView("store");
       } else if (hashLower.startsWith("#category=")) {
         const catValue = decodeURIComponent(fullHash.slice("#category=".length).split("&")[0]);
         setInitialCategoryFilter(catValue);
+        setCurrentView("store");
+      } else if (
+        hashLower === "#terminal" ||
+        hashLower === "#portal" ||
+        hashLower === "#staff" ||
+        hashLower === "#employee" ||
+        hashLower === "#staff-terminal"
+      ) {
         setCurrentView("store");
       } else if (hashLower.startsWith("#brand=")) {
         const brandValue = decodeURIComponent(fullHash.slice("#brand=".length).split("&")[0]);

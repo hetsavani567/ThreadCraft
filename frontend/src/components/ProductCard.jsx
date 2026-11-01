@@ -24,7 +24,7 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
   const isOutOfStock =
     product.total_stock !== undefined && product.total_stock <= 0;
 
-  const { discountPercent, originalPrice } = getProductDiscount(product, displayPrice);
+  const { discountPercent, originalPrice } = getProductDiscount(product, displayPrice, selectedVariant);
 
   function handleAddToCartClick(e) {
     e.stopPropagation();
@@ -53,13 +53,13 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
   return (
     <article
       onClick={handleCardClick}
-      className={`group flex flex-col justify-between overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer ${
+      className={`group flex flex-col justify-between h-full overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer ${
         isEmployee ? "ring-1 hover:ring-2 hover:ring-amber-500/70" : ""
       }`}
     >
       <div className="flex flex-col flex-1">
         {/* Product Image */}
-        <div className="relative h-40 sm:h-44 w-full overflow-hidden bg-stone-100">
+        <div className="relative h-40 sm:h-44 w-full shrink-0 overflow-hidden bg-stone-100">
           {!imgError && product.image ? (
             <img
               src={product.image}
@@ -165,12 +165,6 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
               >
                 {product.name}
               </h3>
-
-              {isEmployee && (
-                <span className="text-[9px] bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold shrink-0">
-                  Edit
-                </span>
-              )}
             </div>
 
             <p className="mt-1 line-clamp-2 text-xs text-stone-500 leading-relaxed min-h-[32px]">
@@ -210,7 +204,7 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
       </div>
 
       {/* Price and Footer */}
-      <div className="border-t border-stone-100 p-3 pt-2.5 bg-stone-50/50">
+      <div className="border-t border-stone-100 p-3 pt-2.5 bg-stone-50/50 shrink-0">
         <div className="flex items-center justify-between gap-2">
           <div>
             <span className="text-[10px] text-stone-400 block font-medium uppercase tracking-wider">
@@ -260,12 +254,6 @@ function ProductCard({ product, onAddToCart, isEmployee, onEditVariant, onSelect
               </svg>
               <span>{isOutOfStock ? "Out" : "Add"}</span>
             </button>
-          )}
-
-          {isEmployee && (
-            <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-              ✏️ Edit
-            </span>
           )}
         </div>
       </div>
