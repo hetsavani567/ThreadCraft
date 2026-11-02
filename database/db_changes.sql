@@ -1,13 +1,9 @@
--- ============================================================
--- ThreadCraft Database Change Log
--- ============================================================
--- This file automatically logs all database mutations
+-- -- ThreadCraft Database Change Log
+-- -- This file automatically logs all database mutations
 -- (INSERT, UPDATE, DELETE) performed through the backend API.
 -- Each entry is timestamped and describes the operation.
--- ============================================================
--- Format: [ISO_TIMESTAMP] ACTION: details
--- ============================================================
--- [2026-10-29T10:30:22.202Z] INSERT REVIEW: product_id=1, rating=5, customer="Ananya Roy"
+-- -- Format: [ISO_TIMESTAMP] ACTION: details
+-- -- [2026-10-29T10:30:22.202Z] INSERT REVIEW: product_id=1, rating=5, customer="Ananya Roy"
 -- [2026-10-29T10:44:13.514Z] INSERT REVIEW: product_id=1, rating=5, customer="Kavya Patel"
 -- [2026-10-29T10:45:14.157Z] INSERT REVIEW: product_id=3, rating=3, customer="Het"
 -- [2026-10-29T10:51:59.352Z] INSERT REVIEW: product_id=12, rating=2, customer="Chintan"
@@ -16,9 +12,7 @@
 -- [2026-10-29T15:17:02.922Z] INSERT REVIEW: product_id=1, rating=5, customer="Het Savani"
 -- [2026-10-29T15:30:00.000Z] MIGRATION: Divided generic 'Clothing' category into 'Topwear' (ID: 8) and 'Bottomwear' (ID: 9)
 -- [2026-10-29T16:39:59.727Z] DELETE REVIEW: review_id=22, product_id=3
-<<<<<<< HEAD
 -- [2026-10-29T18:48:00.000Z] STANDARDIZATION: Standardized all 31 product Image_URLs to Puma Running Shoes studio e-commerce format (?auto=format&fit=crop&w=700&q=80)
-=======
 -- [2026-10-30T03:29:17.193Z] UPDATE INVENTORY: product_id=1, delta=5, branch_id=1, new_total_stock=146
 -- [2026-10-30T03:29:17.411Z] UPDATE INVENTORY: product_id=1, delta=-5, branch_id=1, new_total_stock=141
 -- [2026-10-30T03:51:14.549Z] UPDATE INVENTORY: product_id=1, delta=5, branch_id=1, new_total_stock=146
@@ -41,4 +35,3 @@
 -- [2026-11-01T10:10:05.747Z] UPDATE VARIANT: variant_id=1, color_size="Black-8", selling_price=3599, discount_percent=25%, is_active=true
 -- [2026-11-01T10:29:53.700Z] UPDATE VARIANT: variant_id=5, color_size="Black-8", selling_price=3599, discount_percent=30%, is_active=true
 -- [2026-11-01T10:30:35.306Z] UPDATE VARIANT: variant_id=4, color_size="Red-9", selling_price=3499, discount_percent=25%, is_active=true
->>>>>>> 677ec24df5958ddaac8b9382eac3a8918ef17532
