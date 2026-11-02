@@ -1078,7 +1078,6 @@ function EmployeePortal({
                   </div>
                 </div>
 
-<<<<<<< HEAD
                 {/* Success Notification */}
                 {createSuccess && (
                   <div className="rounded-2xl bg-emerald-50 border border-emerald-300 p-4 text-sm font-semibold text-emerald-900 flex items-center justify-between gap-3 animate-fadeIn shadow-xs">
@@ -1417,11 +1416,6 @@ function EmployeePortal({
 
                   {/* Actions Bar */}
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-=======
-                {/* Sub-Mode Selector Pill Bar */}
-                <div className="rounded-3xl border border-stone-200 bg-white p-3 shadow-xs flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-2">
->>>>>>> 677ec24df5958ddaac8b9382eac3a8918ef17532
                     <button
                       type="button"
                       onClick={() => {
@@ -1479,8 +1473,7 @@ function EmployeePortal({
                     {catalogMode === "variant-only" && "Select or type Product ID to attach new variant & stock"}
                     {catalogMode === "both" && "Full insertion into product, variant & inventory tables"}
                   </div>
-                </div>
-
+              </form>
                 {/* ------------------------------------------------------------------------- */}
                 {/* SUB-MODE 1: ADD PRODUCT ONLY                                              */}
                 {/* ------------------------------------------------------------------------- */}

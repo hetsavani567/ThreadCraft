@@ -42,3 +42,5 @@
 -- [2026-11-01T10:29:53.700Z] UPDATE VARIANT: variant_id=5, color_size="Black-8", selling_price=3599, discount_percent=30%, is_active=true
 -- [2026-11-01T10:30:35.306Z] UPDATE VARIANT: variant_id=4, color_size="Red-9", selling_price=3499, discount_percent=25%, is_active=true
 >>>>>>> 677ec24df5958ddaac8b9382eac3a8918ef17532
+-- [2026-11-01T12:08:42.242Z] UPDATE VARIANT: variant_id=7, color_size="Grey-L", selling_price=1999, discount_percent=25%, is_active=false
+-- [2026-11-01T12:09:07.089Z] UPDATE VARIANT: variant_id=27, color_size="Camel-8", selling_price=4299, discount_percent=30%, is_active=false
